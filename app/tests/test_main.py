@@ -1,3 +1,5 @@
+import os
+
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from app.main import app
@@ -85,8 +87,6 @@ def test_upload_single_empty_filename():
     data = response.json()
     assert "detail" in data
 
-
-import os
 
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
 

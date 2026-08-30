@@ -31,6 +31,9 @@ pluma/
 
 These rules govern _how_ work gets done in this repo, for every feature, in both `core/` and `ui/`. They apply regardless of which pipeline stage or page is being built.
 
+Do not create a new venv or .venv is there is an existing one already. If there isn't create a .venv via
+python3 -m venv .venv --prompt pluma and then install the dependencies that is listed in requirements.txt
+
 ### One feature at a time
 
 - Do not implement multiple features, pipeline stages, or UI pages in a single pass.
