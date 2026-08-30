@@ -1,4 +1,4 @@
-from app.services.split import split_sentences
+from core.services.split import split_sentences
 
 
 class TestSplitSentencesPPTX:

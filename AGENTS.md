@@ -12,7 +12,7 @@ A free, offline reviewer-generator for students. It takes a lesson document, ext
 
 ```
 pluma/
-├── app/          FastAPI backend + NLP pipeline
+├── core/          FastAPI backend + NLP pipeline
 │   │
 │   │── main.py
 │   │── api/       route handlers
@@ -29,11 +29,11 @@ pluma/
 
 ## Development workflow
 
-These rules govern _how_ work gets done in this repo, for every feature, in both `app/` and `ui/`. They apply regardless of which pipeline stage or page is being built.
+These rules govern _how_ work gets done in this repo, for every feature, in both `core/` and `ui/`. They apply regardless of which pipeline stage or page is being built.
 
 Dependency management uses **uv**, not pip/venv directly. Do not manually create a `.venv`, do not run `pip install`, and do not maintain a `requirements.txt` — uv manages the virtual environment and dependency resolution from `pyproject.toml` and `uv.lock`.
 
-- Run `uv sync` to install/update dependencies before running anything in `app/`.
+- Run `uv sync` to install/update dependencies before running anything in `core/`.
 - Use `uv run <command>` to execute the server, scripts, or tests within that environment (e.g. `uv run pytest`, `uv run uvicorn app.main:app --reload`).
 - When a feature genuinely needs a new dependency, add it with `uv add <package>` (or `uv add --dev <package>` for test/dev-only tools) so `pyproject.toml` and `uv.lock` stay in sync. Do not hand-edit the dependency list in `pyproject.toml`.
 - `uv.lock` should be committed. Don't regenerate it wholesale for an unrelated change — if `uv sync` modifies the lockfile as a side effect of an unrelated feature, that's worth a second look, not an automatic commit.
@@ -46,7 +46,7 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 
 ### Tests first, always
 
-- Write tests before writing any implementation code — for every feature, in both `app/` and `ui/`. UI features need tests written before the component/logic exists too, not only backend logic.
+- Write tests before writing any implementation code — for every feature, in both `core/` and `ui/`. UI features need tests written before the component/logic exists too, not only backend logic.
 - Test coverage for a feature should include:
   - The core/happy-path action the feature exists to perform.
   - Edge cases that could realistically occur given real input (e.g. empty file, malformed sentence, missing field).
@@ -68,7 +68,7 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 ## Tech stack
 
 - **Backend:** FastAPI (Python). Chosen specifically because the NLP tooling (spaCy, MarkItDown) is Python-native — backend and pipeline run in the same process, no cross-language calls.
-- **Dependency management:** uv. Handles the virtual environment, dependency resolution, and lockfile (`uv.lock`) for `app/`. See "Development workflow" for usage — don't fall back to pip or manual venvs.
+- **Dependency management:** uv. Handles the virtual environment, dependency resolution, and lockfile (`uv.lock`) for `core/`. See "Development workflow" for usage — don't fall back to pip or manual venvs.
 - **NLP:** spaCy (`en_core_web_sm`) for sentence structure, POS tagging, and NER. Extraction via `markitdown`.
 - **Frontend:** SvelteKit. Chosen over React because the UI is CRUD-shaped (upload, list, flashcard flip), not state-heavy enough to need a large component ecosystem.
 - **Storage:** SQLite for now. Don't introduce Postgres or any other DB engine without an explicit reason tied to actual multi-user concurrency needs.
@@ -104,7 +104,7 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 
 ### API communication
 
-- Treat the FastAPI API as the contract between app/ and ui/.
+- Treat the FastAPI API as the contract between core/ and ui/.
 - Centralize the API base URL rather than hardcoding it throughout the frontend.
 - Do not hardcode environment-specific URLs in components.
 - Use a small API client abstraction for repeated concerns such as constructing requests, parsing JSON, and handling non-success responses. Do not build a large API framework around fetch() unless the application actually requires one.
@@ -167,7 +167,7 @@ After extraction, check output length against page count. If it's suspiciously s
 See "Development workflow" above for the general test-first rules. Specific to this pipeline:
 
 - Validation (step 7) needs one test case per rejection rule, using a real example sentence — not a placeholder string.
-- Maintain a small hand-labeled regression set (real sentences with expected good/bad question outcomes) under `app/tests/`. Run it after any change to scoring, generation, or validation logic — this is how "did this change help or hurt" gets answered, not by eyeballing.
+- Maintain a small hand-labeled regression set (real sentences with expected good/bad question outcomes) under `core/tests/`. Run it after any change to scoring, generation, or validation logic — this is how "did this change help or hurt" gets answered, not by eyeballing.
 - Don't add new dependencies to the pipeline (new NLP libraries, scoring methods) without a corresponding test showing the specific problem it solves.
 
 ## Running locally (no Docker)

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from app.services.extractors import extract_text
+from core.services.extractors import extract_text
 
 
 def test_dispatches_to_pdf_extractor():

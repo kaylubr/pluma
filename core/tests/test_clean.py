@@ -1,4 +1,4 @@
-from app.services.clean import clean_markdown
+from core.services.clean import clean_markdown
 
 
 class TestCleanMarkdown:
