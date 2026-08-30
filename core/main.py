@@ -1,8 +1,18 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from typing import List
-from core.services.extractors import extract_text
 
-app = FastAPI()
+from core.services.extractors import extract_text
+from core.services.nlp import get_analyzer, get_sentencizer
+
+
+@asynccontextmanager
+def lifespan(app: FastAPI):
+    get_analyzer()
+    get_sentencizer()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.post("/upload")
