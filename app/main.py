@@ -1,8 +1,9 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from typing import List
-from services.extractors import extract_text
+from app.services.extractors import extract_text
 
 app = FastAPI()
+
 
 @app.post("/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
@@ -15,3 +16,20 @@ async def upload_files(files: List[UploadFile] = File(...)):
         except ValueError as e:
             results.append({"filename": file.filename, "text": None, "error": str(e)})
     return {"results": results}
+
+
+@app.post("/upload/single")
+async def upload_single(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower()
+    if ext not in ("pdf", "pptx"):
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: .{ext}. Only PDF and PPTX are supported.")
+
+    contents = await file.read()
+    try:
+        text = extract_text(file.filename, contents)
+        return {"filename": file.filename, "text": text, "error": None}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

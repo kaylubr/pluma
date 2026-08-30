@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import patch
 from app.services.extractors import extract_text
 
@@ -17,6 +18,5 @@ def test_dispatches_to_pptx_extractor():
 
 
 def test_unsupported_file_type_raises():
-    import pytest
     with pytest.raises(ValueError, match="Unsupported file type"):
         extract_text("lesson.exe", b"fake bytes")
