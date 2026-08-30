@@ -1,7 +1,7 @@
 from app.services.split import split_sentences
 
 
-class TestSplitSentences:
+class TestSplitSentencesPDF:
     def test_abbreviation_does_not_split(self):
         text = "Dr. Smith discovered polonium."
         result = split_sentences(text)
