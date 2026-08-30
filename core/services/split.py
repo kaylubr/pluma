@@ -1,10 +1,9 @@
 import re
-import spacy
+
+from .nlp import get_sentencizer
 
 
-_sentencizer_nlp = spacy.blank("en")
-_sentencizer_nlp.add_pipe("sentencizer")
-
+_sentencizer_nlp = get_sentencizer()
 
 _BULLET_PATTERN = re.compile(r"^(\s*)[-*+]\s+(.*)$")
 _NUMBERED_PATTERN = re.compile(r"^(\s*)\d+\.\s+(.*)$")

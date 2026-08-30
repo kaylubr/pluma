@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from typing import List
-from app.services.extractors import extract_text
+from core.services.extractors import extract_text
 
 app = FastAPI()
 
