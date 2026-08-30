@@ -84,3 +84,43 @@ def test_upload_single_empty_filename():
     assert response.status_code == 422
     data = response.json()
     assert "detail" in data
+
+
+import os
+
+FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
+
+
+def test_upload_single_pdf_real_file():
+    pdf_path = os.path.join(FIXTURES_DIR, "lesson.pdf")
+    with open(pdf_path, "rb") as f:
+        response = client.post(
+            "/upload/single",
+            files={"file": ("lesson.pdf", f.read(), "application/pdf")},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["filename"] == "lesson.pdf"
+    assert data["error"] is None
+    assert "Introduction to Biology" in data["text"]
+    assert "Cells are the basic unit of life" in data["text"]
+    assert "DNA carries genetic information" in data["text"]
+
+
+def test_upload_single_pptx_real_file():
+    pptx_path = os.path.join(FIXTURES_DIR, "slides.pptx")
+    with open(pptx_path, "rb") as f:
+        response = client.post(
+            "/upload/single",
+            files={"file": ("slides.pptx", f.read(), "application/vnd.openxmlformats-officedocument.presentationml.presentation")},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["filename"] == "slides.pptx"
+    assert data["error"] is None
+    assert "Cell Structure" in data["text"]
+    assert "Mitochondria produce ATP" in data["text"]
+    assert "Ribosomes synthesize proteins" in data["text"]
+    assert "Nucleus contains DNA" in data["text"]
