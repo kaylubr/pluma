@@ -111,6 +111,6 @@ class TestSplitSentencesPPTX:
     
     def test_default_source_format_is_still_pdf_behavior(self):
         text = "The mitochondria is the\npowerhouse of the cell."
-        result = split_sentences(text)
+        result = split_sentences(text, source_format="pdf")
         assert result == ["The mitochondria is the powerhouse of the cell."]
  

@@ -10,7 +10,11 @@ _BULLET_PATTERN = re.compile(r"^(\s*)[-*+]\s+(.*)$")
 _NUMBERED_PATTERN = re.compile(r"^(\s*)\d+\.\s+(.*)$")
 
 
-def _rejoin_wrapped_lines(text: str) -> str:
+def _split_pdf(text: str) -> list[str]:
+    """Split PDF text into sentences using line-rejoining heuristic + sentencizer."""
+    if not text or not text.strip():
+        return []
+
     lines = [l.strip() for l in text.split("\n") if l.strip()]
     joined = []
     buffer = ""
@@ -21,10 +25,15 @@ def _rejoin_wrapped_lines(text: str) -> str:
             buffer = ""
     if buffer:
         joined.append(buffer)
-    return " ".join(joined)
+
+    rejoined_text = " ".join(joined)
+    doc = _sentencizer_nlp(rejoined_text)
+    sentences = [sent.text.strip() for sent in doc.sents if sent.text.strip()]
+    return sentences
 
 
 def _split_pptx(text: str) -> list[str]:
+    """Split PPTX text into sentences treating bullets/numbered items as separate entries."""
     if not text or not text.strip():
         return []
 
@@ -88,13 +97,13 @@ def _split_pptx(text: str) -> list[str]:
 
 
 def split_sentences(text: str, source_format: str = "pdf") -> list[str]:
+    """Split text into sentences based on source format (pdf or pptx)."""
     if not text or not text.strip():
         return []
 
     if source_format == "pptx":
         return _split_pptx(text)
-
-    rejoined = _rejoin_wrapped_lines(text)
-    doc = _sentencizer_nlp(rejoined)
-    sentences = [sent.text.strip() for sent in doc.sents if sent.text.strip()]
-    return sentences
+    elif source_format == "pdf":
+        return _split_pdf(text)
+    else:
+        raise ValueError(f"Unknown source_format: {source_format}. Expected 'pdf' or 'pptx'.")
