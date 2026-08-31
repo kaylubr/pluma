@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-
+from spacy.tokens import Token
 from core.services.nlp import get_analyzer
 
 
@@ -32,11 +32,22 @@ def analyze_sentence(text: str) -> AnalyzedSentence:
     nouns: list[str] = [token.text for token in doc if token.pos_ in ("NOUN", "PROPN")]
 
     root_verb: str | None = None
+    root_token: Token | None = None
     for token in doc:
         if token.dep_ == "ROOT":
             if token.pos_ in ("VERB", "AUX"):
                 root_verb = token.text
+                root_token = token
             break
+    if root_verb is None:
+        # en_core_web_sm occasionally picks a noun as ROOT (e.g. unpunctuated
+        # PPTX bullets like "Ribosomes synthesize proteins"); fall back to the
+        # first verb so the main-verb signal isn't lost for downstream stages.
+        for token in doc:
+            if token.pos_ in ("VERB", "AUX"):
+                root_verb = token.text
+                root_token = token
+                break
 
     subject_text: str | None = None
     subject_is_pronoun: bool = False
@@ -45,6 +56,15 @@ def analyze_sentence(text: str) -> AnalyzedSentence:
             subject_text = doc[token.left_edge.i : token.right_edge.i + 1].text
             subject_is_pronoun = token.pos_ == "PRON"
             break
+    if subject_text is None and root_token is not None:
+        # The same model error can miss the subject relation entirely (the
+        # subject tagged ADV, e.g. "Ribosomes" in the sentence above); fall
+        # back to the closest pre-verbal dependent of the main verb.
+        for token in doc:
+            if token.i < root_token.i and token.head == root_token:
+                subject_text = doc[token.left_edge.i : token.right_edge.i + 1].text
+                subject_is_pronoun = token.pos_ == "PRON"
+                break
 
     return AnalyzedSentence(
         text=text,
