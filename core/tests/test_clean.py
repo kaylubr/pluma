@@ -1,4 +1,7 @@
+from core.services.analyze import analyze_sentence
 from core.services.clean import clean_markdown
+from core.services.generate import generate_cloze
+from core.services.split import split_sentences
 
 
 class TestCleanMarkdown:
@@ -137,3 +140,51 @@ class TestCleanMarkdown:
         assert "Line one." in result
         assert "Line two." in result
         assert result.count("\n\n") <= 1
+
+
+class TestCleanBulletGlyphs:
+    def test_removes_unicode_bullet_at_line_start(self):
+        text = "• Custom lexicons let you tailor analysis to your needs."
+        result = clean_markdown(text)
+        assert "•" not in result
+        assert "Custom lexicons let you tailor analysis to your needs." in result
+
+    def test_removes_bullets_from_realistic_extracted_text(self):
+        text = (
+            "VADER excels with social media (handling emojis and slang),\n"
+            "• TextBlob is simple for general text\n"
+            "• Custom lexicons let you tailor analysis to your needs."
+        )
+        result = clean_markdown(text)
+        assert "•" not in result
+        assert "TextBlob is simple for general text" in result
+        assert "Custom lexicons let you tailor analysis to your needs." in result
+
+    def test_removes_embedded_bullet_within_a_line(self):
+        text = "general text • Custom lexicons let you tailor analysis"
+        result = clean_markdown(text)
+        assert "•" not in result
+        assert "Custom lexicons let you tailor analysis" in result
+
+    def test_removes_common_bullet_glyph_variants(self):
+        for glyph in ["•", "◦", "‣", "▪", "▫", "⁃"]:
+            result = clean_markdown(f"{glyph} Example sentence.")
+            assert glyph not in result
+            assert "Example sentence." in result
+
+
+class TestBulletRegressionPipeline:
+    def test_bullet_glyph_never_reaches_downstream_or_becomes_an_answer(self):
+        text = (
+            "VADER excels with social media (handling emojis and slang),\n"
+            "• TextBlob is simple for general text\n"
+            "• Custom lexicons let you tailor analysis to your needs."
+        )
+        cleaned = clean_markdown(text)
+        sentences = split_sentences(cleaned, "pdf")
+        assert sentences
+        assert all("•" not in sentence for sentence in sentences)
+        for sentence in sentences:
+            cloze = generate_cloze(analyze_sentence(sentence))
+            if cloze is not None:
+                assert "•" not in cloze.answer
