@@ -77,7 +77,7 @@ def score_sentence(analyzed: AnalyzedSentence) -> ScoredSentence:
     if analyzed.root_verb and analyzed.root_verb.lower() in _IMPERATIVE_VERBS:
         return ScoredSentence(text=text, worth_question=False, reason="imperative")
 
-    if words[0].lower() in _BOILERPLATE_OPENS:
+    if words[0].lower().strip(":,.;") in _BOILERPLATE_OPENS:
         return ScoredSentence(text=text, worth_question=False, reason="boilerplate")
 
     if analyzed.root_verb is None:
