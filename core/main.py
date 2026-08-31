@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from core.api.routes import questions, reviewers, uploads
+from core.api.routes import questions, reviewers
 from core.db.session import DEFAULT_DB_PATH, create_db_engine, ensure_schema
 from core.services.nlp import get_analyzer, get_sentencizer
 
@@ -19,6 +19,5 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(uploads.router)
 app.include_router(reviewers.router)
 app.include_router(questions.router)
