@@ -10,7 +10,6 @@ class TestExtractors:
         mock_fn.assert_called_once()
         assert result == "pdf content"
 
-
     def test_dispatches_to_pptx_extractor(self):
         with patch("core.services.extractors.extract_pptx", return_value="pptx content") as mock_fn:
             result = extract_text("lesson.pptx", b"fake bytes")

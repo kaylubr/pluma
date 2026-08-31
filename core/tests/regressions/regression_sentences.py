@@ -1,7 +1,9 @@
-# Hand-labeled regression set for the Score stage.
-# Each entry is (sentence, expected_worth_question).
-# Run after any change to scoring logic — this extends the per-rule unit tests
-# with real lesson content to catch regressions that unit tests would miss.
+"""
+Hand-labeled regression set for the Score stage.
+Each entry is (sentence, expected_worth_question).
+Run after any change to scoring logic — this extends the per-rule unit tests
+with real lesson content to catch regressions that unit tests would miss.
+"""
 REGRESSION_SENTENCES = [
     # Reject: boilerplate / slide titles
     ("Introduction to Cell Biology", False),

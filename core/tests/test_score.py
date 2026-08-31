@@ -1,6 +1,6 @@
 from core.services.analyze import analyze_sentence
 from core.services.score import score_sentence, score_sentences
-from core.tests.regression_sentences import REGRESSION_SENTENCES
+from core.tests.regressions.regression_sentences import REGRESSION_SENTENCES
 
 
 class TestScoreSentence:
