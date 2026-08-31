@@ -78,6 +78,12 @@ class TestScoreSentence:
         result = score_sentence(analyzed)
         assert result.worth_question is False
         assert result.reason == "no_verb"
+        
+    def test_reject_boilerplate_with_colon(self):
+        analyzed = analyze_sentence("Overview: this unit covers cell structure.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "boilerplate"
 
 
 class TestScoreSentences:
