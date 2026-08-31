@@ -1,27 +1,12 @@
-from core.services.analyze import AnalyzedSentence
 from core.services.generate import generate_cloze, generate_clozes
+from core.tests.helper import make_analyzed
 from core.tests.regressions.regression_clozes import REGRESSION_CLOZES
-
-
-def _analyzed(
-    text: str,
-    entities: list[tuple[str, str]] | None = None,
-    nouns: list[str] | None = None,
-) -> AnalyzedSentence:
-    return AnalyzedSentence(
-        text=text,
-        entities=entities or [],
-        nouns=nouns or [],
-        root_verb=None,
-        subject_text=None,
-        subject_is_pronoun=False,
-    )
 
 
 class TestGenerateClozeEntity:
     def test_blanks_first_entity_not_subject_aware(self):
         result = generate_cloze(
-            _analyzed(
+            make_analyzed(
                 "Mitochondria produce ATP.",
                 entities=[("Mitochondria", "PERSON")],
                 nouns=["Mitochondria", "ATP"],
@@ -35,7 +20,7 @@ class TestGenerateClozeEntity:
 
     def test_blanks_whole_entity_over_component_nouns(self):
         result = generate_cloze(
-            _analyzed(
+            make_analyzed(
                 "Marie Curie discovered polonium in 1898.",
                 entities=[("Marie Curie", "PERSON"), ("1898", "DATE")],
                 nouns=["Marie", "Curie", "polonium"],
@@ -48,7 +33,7 @@ class TestGenerateClozeEntity:
 
     def test_numeric_entity_never_becomes_candidate(self):
         result = generate_cloze(
-            _analyzed(
+            make_analyzed(
                 "Cells were discovered in 1665.",
                 entities=[("1665", "DATE")],
                 nouns=["Cells"],
@@ -63,7 +48,7 @@ class TestGenerateClozeEntity:
 class TestGenerateClozeNoun:
     def test_blanks_first_noun_when_no_entity(self):
         result = generate_cloze(
-            _analyzed("Ribosomes synthesize proteins.", nouns=["proteins"])
+            make_analyzed("Ribosomes synthesize proteins.", nouns=["proteins"])
         )
         assert result is not None
         assert result.text == "Ribosomes synthesize _____."
@@ -72,7 +57,7 @@ class TestGenerateClozeNoun:
 
     def test_blanks_first_noun_not_longest(self):
         result = generate_cloze(
-            _analyzed(
+            make_analyzed(
                 "DNA carries genetic information.",
                 nouns=["DNA", "information"],
             )
@@ -84,7 +69,7 @@ class TestGenerateClozeNoun:
 
     def test_blanks_subject_noun(self):
         result = generate_cloze(
-            _analyzed(
+            make_analyzed(
                 "Cells are the basic unit of life.",
                 nouns=["Cells", "unit", "life"],
             )
@@ -96,7 +81,7 @@ class TestGenerateClozeNoun:
 
     def test_blanks_passive_subject(self):
         result = generate_cloze(
-            _analyzed(
+            make_analyzed(
                 "ATP is produced by mitochondria",
                 nouns=["ATP", "mitochondria"],
             )
@@ -108,7 +93,7 @@ class TestGenerateClozeNoun:
 
     def test_blanks_mid_sentence_noun(self):
         result = generate_cloze(
-            _analyzed(
+            make_analyzed(
                 "Both organelles have their own DNA",
                 nouns=["organelles", "DNA"],
             )
@@ -120,7 +105,7 @@ class TestGenerateClozeNoun:
 
     def test_skips_duplicate_candidate_and_falls_through(self):
         result = generate_cloze(
-            _analyzed(
+            make_analyzed(
                 "ATP and DNA produce ATP.",
                 nouns=["ATP", "DNA", "ATP"],
             )
@@ -134,18 +119,18 @@ class TestGenerateClozeNoun:
 class TestGenerateClozeNone:
     def test_all_candidates_duplicate_returns_none(self):
         result = generate_cloze(
-            _analyzed("DNA contains DNA.", nouns=["DNA", "DNA"])
+            make_analyzed("DNA contains DNA.", nouns=["DNA", "DNA"])
         )
         assert result is None
 
     def test_no_candidates_returns_none(self):
-        assert generate_cloze(_analyzed("Yes")) is None
+        assert generate_cloze(make_analyzed("Yes")) is None
 
     def test_empty_text_returns_none(self):
-        assert generate_cloze(_analyzed("")) is None
+        assert generate_cloze(make_analyzed("")) is None
 
     def test_whitespace_text_returns_none(self):
-        assert generate_cloze(_analyzed("   ")) is None
+        assert generate_cloze(make_analyzed("   ")) is None
 
 
 class TestGenerateClozeAnswerTraceability:
@@ -160,9 +145,9 @@ class TestGenerateClozeAnswerTraceability:
 class TestGenerateClozes:
     def test_batch_matches_input_order_and_keeps_none(self):
         inputs = [
-            _analyzed("Ribosomes synthesize proteins.", nouns=["proteins"]),
-            _analyzed("Yes"),
-            _analyzed("Mitochondria produce ATP.", entities=[("Mitochondria", "PERSON")], nouns=["Mitochondria", "ATP"]),
+            make_analyzed("Ribosomes synthesize proteins.", nouns=["proteins"]),
+            make_analyzed("Yes"),
+            make_analyzed("Mitochondria produce ATP.", entities=[("Mitochondria", "PERSON")], nouns=["Mitochondria", "ATP"]),
         ]
         results = generate_clozes(inputs)
         assert len(results) == len(inputs)

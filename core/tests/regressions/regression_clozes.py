@@ -6,22 +6,7 @@ stage produces for real lesson content, keeping this regression set free of
 spaCy/NER coupling — real-parsing regressions are owned by test_analyze.py.
 Run after any change to generation logic.
 """
-from core.services.analyze import AnalyzedSentence
-
-
-def _a(
-    text: str,
-    entities: list[tuple[str, str]] | None = None,
-    nouns: list[str] | None = None,
-) -> AnalyzedSentence:
-    return AnalyzedSentence(
-        text=text,
-        entities=entities or [],
-        nouns=nouns or [],
-        root_verb=None,
-        subject_text=None,
-        subject_is_pronoun=False,
-    )
+from core.tests.helper import make_analyzed as _a
 
 
 REGRESSION_CLOZES = [

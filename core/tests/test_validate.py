@@ -1,22 +1,6 @@
-from core.services.analyze import AnalyzedSentence
-from core.services.generate import GeneratedCloze
 from core.services.validate import validate_question, validate_questions
+from core.tests.helper import make_analyzed, make_cloze
 from core.tests.regressions.regression_validations import REGRESSION_VALIDATIONS
-
-
-def _analyzed(text: str, *, subject_is_pronoun: bool = False) -> AnalyzedSentence:
-    return AnalyzedSentence(
-        text=text,
-        entities=[],
-        nouns=[],
-        root_verb=None,
-        subject_text=None,
-        subject_is_pronoun=subject_is_pronoun,
-    )
-
-
-def _cloze(sentence: str, text: str, answer: str) -> GeneratedCloze:
-    return GeneratedCloze(sentence=sentence, text=text, answer=answer, reason="noun")
 
 
 LONG_SENTENCE = (
@@ -30,8 +14,8 @@ class TestValidateQuestionPass:
     def test_valid_cloze_passes(self):
         sentence = "Cells are the basic unit of life."
         result = validate_question(
-            _analyzed(sentence),
-            _cloze(sentence, "_____ are the basic unit of life.", "Cells"),
+            make_analyzed(sentence),
+            make_cloze(sentence, "_____ are the basic unit of life.", "Cells"),
         )
         assert result.is_valid is True
         assert result.reasons == []
@@ -39,8 +23,8 @@ class TestValidateQuestionPass:
     def test_multi_word_entity_answer_not_rejected_as_too_short(self):
         sentence = "Marie Curie Skłodowska discovered polonium."
         result = validate_question(
-            _analyzed(sentence),
-            _cloze(sentence, "_____ discovered polonium.", "Marie Curie Skłodowska"),
+            make_analyzed(sentence),
+            make_cloze(sentence, "_____ discovered polonium.", "Marie Curie Skłodowska"),
         )
         assert result.is_valid is True
         assert result.reasons == []
@@ -50,16 +34,16 @@ class TestValidateQuestionReject:
     def test_reject_too_short(self):
         sentence = "Cells divide."
         result = validate_question(
-            _analyzed(sentence),
-            _cloze(sentence, "_____ divide.", "Cells"),
+            make_analyzed(sentence),
+            make_cloze(sentence, "_____ divide.", "Cells"),
         )
         assert result.is_valid is False
         assert "too_short" in result.reasons
 
     def test_reject_too_long(self):
         result = validate_question(
-            _analyzed(LONG_SENTENCE),
-            _cloze(LONG_SENTENCE, LONG_SENTENCE.replace("respiration", "_____"), "respiration"),
+            make_analyzed(LONG_SENTENCE),
+            make_cloze(LONG_SENTENCE, LONG_SENTENCE.replace("respiration", "_____"), "respiration"),
         )
         assert result.is_valid is False
         assert "too_long" in result.reasons
@@ -67,8 +51,8 @@ class TestValidateQuestionReject:
     def test_reject_bare_pronoun_subject(self):
         sentence = "It was discovered in 1898."
         result = validate_question(
-            _analyzed(sentence, subject_is_pronoun=True),
-            _cloze(sentence, "_____ was discovered in 1898.", "It"),
+            make_analyzed(sentence, subject_is_pronoun=True),
+            make_cloze(sentence, "_____ was discovered in 1898.", "It"),
         )
         assert result.is_valid is False
         assert "bare_pronoun_subject" in result.reasons
@@ -76,8 +60,8 @@ class TestValidateQuestionReject:
     def test_reject_ambiguous_blank(self):
         sentence = "DNA contains DNA."
         result = validate_question(
-            _analyzed(sentence),
-            _cloze(sentence, "_____ contains DNA.", "DNA"),
+            make_analyzed(sentence),
+            make_cloze(sentence, "_____ contains DNA.", "DNA"),
         )
         assert result.is_valid is False
         assert "ambiguous_blank" in result.reasons
@@ -85,8 +69,8 @@ class TestValidateQuestionReject:
     def test_reject_answer_leakage(self):
         sentence = "DNA contains DNA."
         result = validate_question(
-            _analyzed(sentence),
-            _cloze(sentence, "_____ contains DNA.", "DNA"),
+            make_analyzed(sentence),
+            make_cloze(sentence, "_____ contains DNA.", "DNA"),
         )
         assert result.is_valid is False
         assert "answer_leakage" in result.reasons
@@ -95,13 +79,13 @@ class TestValidateQuestionReject:
 class TestValidateQuestions:
     def test_batch_preserves_order_and_handles_none(self):
         analyzed_list = [
-            _analyzed("Cells are the basic unit of life."),
-            _analyzed("Cells divide."),
-            _analyzed("DNA contains DNA."),
+            make_analyzed("Cells are the basic unit of life."),
+            make_analyzed("Cells divide."),
+            make_analyzed("DNA contains DNA."),
         ]
         clozes = [
-            _cloze("Cells are the basic unit of life.", "_____ are the basic unit of life.", "Cells"),
-            _cloze("Cells divide.", "_____ divide.", "Cells"),
+            make_cloze("Cells are the basic unit of life.", "_____ are the basic unit of life.", "Cells"),
+            make_cloze("Cells divide.", "_____ divide.", "Cells"),
             None,
         ]
         results = validate_questions(analyzed_list, clozes)
@@ -115,7 +99,7 @@ class TestValidateQuestions:
 
     def test_batch_raises_on_length_mismatch(self):
         try:
-            validate_questions([_analyzed("Cells divide.")], [])
+            validate_questions([make_analyzed("Cells divide.")], [])
         except ValueError:
             return
         assert False, "expected ValueError for mismatched list lengths"

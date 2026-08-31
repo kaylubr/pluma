@@ -6,23 +6,8 @@ lesson content, keeping this regression set free of spaCy/NER coupling —
 real-parsing regressions are owned by test_analyze.py.
 Run after any change to validation logic.
 """
-from core.services.analyze import AnalyzedSentence
-from core.services.generate import GeneratedCloze
-
-
-def _a(text: str, *, subject_is_pronoun: bool = False) -> AnalyzedSentence:
-    return AnalyzedSentence(
-        text=text,
-        entities=[],
-        nouns=[],
-        root_verb=None,
-        subject_text=None,
-        subject_is_pronoun=subject_is_pronoun,
-    )
-
-
-def _c(sentence: str, text: str, answer: str) -> GeneratedCloze:
-    return GeneratedCloze(sentence=sentence, text=text, answer=answer, reason="noun")
+from core.tests.helper import make_analyzed as _a
+from core.tests.helper import make_cloze as _c
 
 
 REGRESSION_VALIDATIONS = [
