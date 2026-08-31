@@ -366,4 +366,4 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-PROJECT_SPEC.md
+real_*
