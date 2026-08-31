@@ -15,10 +15,11 @@ pluma/
 ├── core/          FastAPI backend + NLP services
 │   │
 │   │── main.py
-│   │── api/       route handlers
-│   │── services/  extract, clean, nlp, generate, validate
-│   │── models/    pydantic schemas + db models
-│   │── db/        session, migrations
+│   │── api/       route handlers (future — Serve stage)
+│   │── services/  extract, clean, split, analyze, score, generate, validate, store
+│   │── models/    future Pydantic API request/response schemas (added with Serve)
+│   │── db/        session.py, models.py
+│   │── alembic/   versioned database migrations
 │   └── tests/
 ├── ui/
 │   │── src/       SvelteKit frontend
@@ -73,13 +74,13 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 - **Dependency management:** uv (see "Development workflow" above for commands and rules — don't fall back to pip or manual venvs).
 - **NLP:** spaCy (`en_core_web_sm`) for sentence structure, POS tagging, and NER. Extraction via `markitdown`.
 - **Frontend:** SvelteKit. Chosen over React because the UI is CRUD-shaped (upload, list, flashcard flip), not state-heavy enough to need a large component ecosystem.
-- **Storage:** SQLite for now. Don't introduce Postgres or any other DB engine without an explicit reason tied to actual multi-user concurrency needs.
+- **Storage:** SQLite via SQLAlchemy ORM, with Alembic for versioned migrations and Pydantic for API request/response schemas at the API boundary only. Don't introduce Postgres or any other DB engine without an explicit reason tied to actual multi-user concurrency needs.
 - **Docker:** intentionally not set up yet. Run everything with plain `uv run uvicorn` / `npm run dev` for now. Don't add Dockerfiles or docker-compose unless asked.
 
 ## Coding guidelines
 
 - Keep the codebase simple and consistent with the project's current scope. Prefer straightforward implementations over abstractions that are not yet justified by the application.
-- Do not introduce a dependency when the standard library or an existing dependency already solves the problem adequately. Any new dependency must have a clear reason and should not expand the NLP services without a corresponding test demonstrating the problem it solves.
+- Do not introduce a dependency when the standard library or an existing dependency already solves the problem adequately. Any new dependency must have a clear reason and should not expand the NLP services without a corresponding test demonstrating the problem it solves. **SQLAlchemy and Alembic are explicit exceptions — the project's intentional persistence stack (ORM plus versioned migrations).** The exception does not extend to NLP/scoring logic, where the test-justifying-dependency rule still applies.
 - Do not refactor unrelated code while implementing a feature. Make the smallest coherent change that completes the requested work.
 - Before modifying code, inspect the existing implementation and follow its established patterns unless there is a concrete reason to change them.
 - Do not assume a library, configuration file, utility, or architectural layer exists. Verify it in the repository first.
@@ -98,7 +99,7 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 - API errors should have a predictable response structure so the SvelteKit frontend can handle them consistently.
 - Do not expose stack traces, database errors, internal implementation details, or sensitive information through API responses.
 - Keep the NLP services independent from HTTP concerns. Service stages should not depend on FastAPI request objects, response objects, or HTTP-specific exceptions. The API layer should call the services and translate their results into API responses.
-- Keep database access separate from the NLP services. The services should be independently testable without requiring a running FastAPI server or database.
+- Keep database access separate from the NLP services. The services should be independently testable without requiring a running server or external database. Store tests intentionally use isolated in-memory SQLite; the NLP services never touch the database.
 
 ### SvelteKit SPA frontend
 
@@ -145,7 +146,7 @@ Each stage should stay isolated and independently testable. Don't collapse stage
    - the sentence's subject is a bare pronoun with no clear referent
    - sentence word count is below ~5–6 or above ~25–30
    - the blanked term appears more than once in the sentence (ambiguous blank)
-8. **Store** — persist sentence + question + validation result to SQLite.
+8. **Store** — persist sentence + question + validation result to SQLite via SQLAlchemy. Persists the sentences the caller supplies (Score-kept ones, per orchestration) and every generated question with its validation result; it does not filter, score, or validate.
 9. **Serve** — API returns questions to the frontend for flashcard mode.
 
 ## V1 scope — do not exceed without explicit instruction
