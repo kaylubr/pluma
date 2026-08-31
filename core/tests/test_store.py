@@ -7,7 +7,7 @@ from alembic.config import Config
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from core.db.models import Base, Document, Question, Sentence
+from core.models import Base, Document, Question, Sentence
 from core.db.session import create_db_engine
 from core.services.generate import generate_cloze
 from core.services.score import score_sentence

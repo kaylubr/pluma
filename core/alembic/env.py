@@ -7,13 +7,13 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# Make the repository root importable so `core.db.models` resolves regardless
+# Make the repository root importable so `core.models` resolves regardless
 # of which working directory alembic is invoked from.
 sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-from core.db.models import Base
+from core.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

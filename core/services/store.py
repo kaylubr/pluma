@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from core.db.models import Document, Question, Sentence
+from core.models import Document, Question, Sentence
 from core.services.generate import GeneratedCloze
 from core.services.score import ScoredSentence
 from core.services.validate import ValidationResult

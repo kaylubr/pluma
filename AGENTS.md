@@ -17,8 +17,9 @@ pluma/
 │   │── main.py
 │   │── api/       route handlers (future — Serve stage)
 │   │── services/  extract, clean, split, analyze, score, generate, validate, store
-│   │── models/    future Pydantic API request/response schemas (added with Serve)
-│   │── db/        session.py, models.py
+│   │── models/    SQLAlchemy ORM models (one file per model)
+│   │── schemas/   future Pydantic API request/response schemas (added with Serve)
+│   │── db/        session.py
 │   │── alembic/   versioned database migrations
 │   └── tests/
 ├── ui/
