@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.models import Document, Question, Sentence
@@ -58,3 +59,53 @@ def store_questions(
     items: list[tuple[int, GeneratedCloze, ValidationResult]],
 ) -> list[int]:
     return [store_question(session, sentence_id, cloze, validation) for sentence_id, cloze, validation in items]
+
+
+def get_document(session: Session, document_id: int) -> Document | None:
+    return session.get(Document, document_id)
+
+
+def list_documents(session: Session) -> list[Document]:
+    return session.query(Document).order_by(Document.id).all()
+
+
+def list_valid_questions(session: Session, document_id: int) -> list[Question]:
+    return (
+        session.query(Question)
+        .join(Sentence, Question.sentence_id == Sentence.id)
+        .filter(
+            Sentence.document_id == document_id,
+            Question.is_valid.is_(True),
+            Question.discarded.is_(False),
+        )
+        .order_by(Sentence.position, Question.id)
+        .all()
+    )
+
+
+def count_valid_questions(session: Session, document_id: int) -> int:
+    return (
+        session.query(func.count(Question.id))
+        .join(Sentence, Question.sentence_id == Sentence.id)
+        .filter(
+            Sentence.document_id == document_id,
+            Question.is_valid.is_(True),
+            Question.discarded.is_(False),
+        )
+        .scalar()
+    )
+
+
+def get_question(session: Session, question_id: int) -> Question | None:
+    return session.get(Question, question_id)
+
+
+def set_question_discarded(
+    session: Session, question_id: int, discarded: bool
+) -> Question | None:
+    question = session.get(Question, question_id)
+    if question is None:
+        return None
+    question.discarded = discarded
+    session.flush()
+    return question

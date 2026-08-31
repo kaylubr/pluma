@@ -8,7 +8,7 @@ client = TestClient(app)
 
 
 def test_upload_multiple_files():
-    with patch("core.main.extract_text", side_effect=["pdf text", "pptx text"]):
+    with patch("core.api.routes.uploads.extract_text", side_effect=["pdf text", "pptx text"]):
         response = client.post(
             "/upload",
             files=[
@@ -26,7 +26,7 @@ def test_upload_multiple_files():
 
 
 def test_upload_single_pdf():
-    with patch("core.main.extract_text", return_value="extracted pdf content"):
+    with patch("core.api.routes.uploads.extract_text", return_value="extracted pdf content"):
         response = client.post(
             "/upload/single",
             files={"file": ("lesson.pdf", b"fake pdf bytes", "application/pdf")},
@@ -40,7 +40,7 @@ def test_upload_single_pdf():
 
 
 def test_upload_single_pptx():
-    with patch("core.main.extract_text", return_value="extracted pptx content"):
+    with patch("core.api.routes.uploads.extract_text", return_value="extracted pptx content"):
         response = client.post(
             "/upload/single",
             files={"file": ("slides.pptx", b"fake pptx bytes", "application/vnd.openxmlformats-officedocument.presentationml.presentation")},
