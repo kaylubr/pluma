@@ -36,7 +36,7 @@ These rules govern _how_ work gets done in this repo, for every feature, in both
 Dependency management uses **uv**, not pip/venv directly. Do not manually create a `.venv`, do not run `pip install`, and do not maintain a `requirements.txt` — uv manages the virtual environment and dependency resolution from `pyproject.toml` and `uv.lock`.
 
 - Run `uv sync` to install/update dependencies before running anything in `core/`.
-- Use `uv run <command>` to execute the server, scripts, or tests within that environment (e.g. `uv run pytest`, `uv run uvicorn app.main:app --reload`).
+- Use `uv run <command>` to execute the server, scripts, or tests within that environment (e.g. `uv run pytest`, `uv run fastapi dev main.py`).
 - When a feature genuinely needs a new dependency, add it with `uv add <package>` (or `uv add --dev <package>` for test/dev-only tools) so `pyproject.toml` and `uv.lock` stay in sync. Do not hand-edit the dependency list in `pyproject.toml`.
 - `uv.lock` should be committed. Don't regenerate it wholesale for an unrelated change — if `uv sync` modifies the lockfile as a side effect of an unrelated feature, that's worth a second look, not an automatic commit.
 
@@ -76,7 +76,6 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 - **NLP:** spaCy (`en_core_web_sm`) for sentence structure, POS tagging, and NER. Extraction via `markitdown`.
 - **Frontend:** SvelteKit. Chosen over React because the UI is CRUD-shaped (upload, list, flashcard flip), not state-heavy enough to need a large component ecosystem.
 - **Storage:** SQLite via SQLAlchemy ORM, with Alembic for versioned migrations and Pydantic for API request/response schemas at the API boundary only. Don't introduce Postgres or any other DB engine without an explicit reason tied to actual multi-user concurrency needs.
-- **Docker:** intentionally not set up yet. Run everything with plain `uv run uvicorn` / `npm run dev` for now. Don't add Dockerfiles or docker-compose unless asked.
 
 ## Coding guidelines
 
@@ -183,9 +182,12 @@ See "Development workflow" above for the general test-first rules. Specific to t
 
 ## Running locally
 
+Run everything from the repository root, not from `core/` — the backend imports the `core` package, so launching from inside `core/` fails to import it. The database lives at `core/pluma.db`, resolved from the repository layout so it does not depend on the current working directory; both the application and Alembic always target that same file.
+
 ```bash
 uv sync
-uv run fastapi dev main.py
+uv run alembic -c core/alembic.ini upgrade head   # create/migrate core/pluma.db
+uv run fastapi dev core/main.py                   # launch from the repo root
 
 cd ui
 npm run dev

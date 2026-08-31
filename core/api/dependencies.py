@@ -2,7 +2,7 @@ from collections.abc import Generator
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from core.db.session import create_db_engine
+from core.db.session import DEFAULT_DB_PATH, create_db_engine
 
 _engine = None
 _session_factory: sessionmaker | None = None
@@ -11,7 +11,7 @@ _session_factory: sessionmaker | None = None
 def _get_session_factory() -> sessionmaker:
     global _engine, _session_factory
     if _session_factory is None:
-        _engine = create_db_engine("pluma.db")
+        _engine = create_db_engine(DEFAULT_DB_PATH)
         _session_factory = sessionmaker(bind=_engine)
     return _session_factory
 

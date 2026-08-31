@@ -1,6 +1,10 @@
+from pathlib import Path
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
+
+DEFAULT_DB_PATH = str(Path(__file__).resolve().parent.parent / "pluma.db")
 
 
 def _enable_foreign_keys(dbapi_connection, connection_record):
