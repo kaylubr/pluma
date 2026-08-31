@@ -1,7 +1,13 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.models.base import Base
+
+if TYPE_CHECKING:
+    from core.models.document import Document
+    from core.models.question import Question
 
 
 class Sentence(Base):
