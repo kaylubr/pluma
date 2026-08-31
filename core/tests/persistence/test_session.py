@@ -12,7 +12,7 @@ class TestDefaultDbPath:
         assert Path(DEFAULT_DB_PATH).is_absolute()
 
     def test_resides_in_core_package(self):
-        core_dir = Path(__file__).resolve().parent.parent
+        core_dir = Path(__file__).resolve().parents[2]
         assert Path(DEFAULT_DB_PATH) == core_dir / "pluma.db"
 
 

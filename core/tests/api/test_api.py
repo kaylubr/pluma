@@ -11,7 +11,7 @@ from core.models import Base
 from core.services import store
 from core.tests.helper import TINY_PDF, make_cloze, make_scored, make_validation
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 client = TestClient(app)
 

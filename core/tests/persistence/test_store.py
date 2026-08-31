@@ -21,7 +21,7 @@ from core.services.store import (
 from core.services.validate import validate_question
 from core.tests.helper import make_analyzed, make_cloze, make_scored, make_validation
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 @pytest.fixture

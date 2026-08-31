@@ -8,7 +8,7 @@ from core.models import Base, Document, Question, Sentence
 from core.services.orchestrate import process_document
 from core.tests.helper import TINY_PDF
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 @pytest.fixture
