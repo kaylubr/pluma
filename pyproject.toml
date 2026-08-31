@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.19.1",
     "annotated-doc==0.0.5",
     "annotated-types==0.8.0",
     "anyio==4.14.2",
@@ -50,6 +51,7 @@ dependencies = [
     "sentry-sdk==2.66.1",
     "shellingham==1.5.4",
     "spacy>=3.8.16",
+    "sqlalchemy>=2.0.52",
     "starlette==1.4.1",
     "typer==0.27.1",
     "typing-extensions==4.16.0",
