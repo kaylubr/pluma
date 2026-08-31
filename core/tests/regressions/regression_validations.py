@@ -1,0 +1,58 @@
+"""
+Hand-labeled regression set for the Validate stage.
+Each entry is (AnalyzedSentence, GeneratedCloze, expected_is_valid).
+Inputs are built by hand to mirror what Analyze/Generate produce for real
+lesson content, keeping this regression set free of spaCy/NER coupling —
+real-parsing regressions are owned by test_analyze.py.
+Run after any change to validation logic.
+"""
+from core.services.analyze import AnalyzedSentence
+from core.services.generate import GeneratedCloze
+
+
+def _a(text: str, *, subject_is_pronoun: bool = False) -> AnalyzedSentence:
+    return AnalyzedSentence(
+        text=text,
+        entities=[],
+        nouns=[],
+        root_verb=None,
+        subject_text=None,
+        subject_is_pronoun=subject_is_pronoun,
+    )
+
+
+def _c(sentence: str, text: str, answer: str) -> GeneratedCloze:
+    return GeneratedCloze(sentence=sentence, text=text, answer=answer, reason="noun")
+
+
+REGRESSION_VALIDATIONS = [
+    # Valid: real lesson sentences with a clean unique blank
+    (
+        _a("Cells are the basic unit of life."),
+        _c("Cells are the basic unit of life.", "_____ are the basic unit of life.", "Cells"),
+        True,
+    ),
+    (
+        _a("Marie Curie Skłodowska discovered polonium."),
+        _c("Marie Curie Skłodowska discovered polonium.", "_____ discovered polonium.", "Marie Curie Skłodowska"),
+        True,
+    ),
+    # Invalid: fragment that slips past Score's 2-word floor but fails Validate's 5-word floor
+    (
+        _a("Cells divide."),
+        _c("Cells divide.", "_____ divide.", "Cells"),
+        False,
+    ),
+    # Invalid: bare pronoun subject
+    (
+        _a("It was discovered in 1898.", subject_is_pronoun=True),
+        _c("It was discovered in 1898.", "_____ was discovered in 1898.", "It"),
+        False,
+    ),
+    # Invalid: duplicated answer (ambiguous blank + answer leakage)
+    (
+        _a("DNA contains DNA."),
+        _c("DNA contains DNA.", "_____ contains DNA.", "DNA"),
+        False,
+    ),
+]
