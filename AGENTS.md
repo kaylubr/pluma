@@ -1,4 +1,4 @@
-# AGENTS.md — pluma
+# Pluma
 
 This file orients any AI coding agent (or human) working in this repo. Read this before making changes, especially before adding a feature or "fixing" something that looks incomplete — several things below are deliberate scope decisions, not oversights.
 
@@ -6,17 +6,17 @@ This file orients any AI coding agent (or human) working in this repo. Read this
 
 A free, offline reviewer-generator for students. It takes a lesson document, extracts factual sentences, and turns them into flashcard-style study questions.
 
-**Core design decision: pluma uses classical/rule-based NLP, not generative AI.** No LLM API calls anywhere in the question-generation pipeline. This is intentional — it's the entire point of the project (a free alternative to paywalled AI-powered reviewer apps), not a temporary limitation to "upgrade" later. Every generated question's answer must be traceable, word-for-word, back to the source sentence. Do not introduce paraphrase-based or generative question creation into this pipeline.
+**Core design decision: pluma uses classical/rule-based NLP, not generative AI.** No LLM API calls anywhere in the question-generation services. This is intentional — it's the entire point of the project (a free alternative to paywalled AI-powered reviewer apps), not a temporary limitation to "upgrade" later. Every generated question's answer must be traceable, word-for-word, back to the source sentence. Do not introduce paraphrase-based or generative question creation into these services.
 
 ## Repo structure
 
 ```
 pluma/
-├── core/          FastAPI backend + NLP pipeline
+├── core/          FastAPI backend + NLP services
 │   │
 │   │── main.py
 │   │── api/       route handlers
-│   │── pipeline/  extract, clean, nlp, generate, validate
+│   │── services/  extract, clean, nlp, generate, validate
 │   │── models/    pydantic schemas + db models
 │   │── db/        session, migrations
 │   └── tests/
@@ -29,7 +29,7 @@ pluma/
 
 ## Development workflow
 
-These rules govern _how_ work gets done in this repo, for every feature, in both `core/` and `ui/`. They apply regardless of which pipeline stage or page is being built.
+These rules govern _how_ work gets done in this repo, for every feature, in both `core/` and `ui/`. They apply regardless of which service stage or page is being built.
 
 Dependency management uses **uv**, not pip/venv directly. Do not manually create a `.venv`, do not run `pip install`, and do not maintain a `requirements.txt` — uv manages the virtual environment and dependency resolution from `pyproject.toml` and `uv.lock`.
 
@@ -40,7 +40,7 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 
 ### One feature at a time
 
-- Do not implement multiple features, pipeline stages, or UI pages in a single pass.
+- Do not implement multiple features, service stages, or UI pages in a single pass.
 - A feature is not started until the previous one is working and its tests pass.
 - If a task description spans more than one feature, implement the first one, stop, and confirm before continuing to the next. Do not silently keep going.
 
@@ -53,6 +53,7 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 - Do not write tests for scenarios that cannot occur or that don't add real confidence. Test count is not a goal — relevant coverage is.
 - After tests are written, implement code and keep iterating until the tests pass.
 - **Never edit a test to make it pass.** If a test seems wrong once implementation is underway, stop and ask rather than changing the test to fit the code. A test that gets quietly rewritten to match broken behavior defeats the entire point of writing it first.
+- Before declaring a feature done, run the **full** test suite (`uv run pytest` for `core/`, the ui test command for `ui/`) — not just the tests written for this feature. A change to one service stage or component can break something elsewhere that wouldn't show up by running only the new tests.
 
 ### Commits
 
@@ -60,15 +61,16 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
   A commit should do one thing. That is, it should implement one feature, or one bugfix, or refactor one aspect of the codebase.
 - Not every edit deserves its own commit. Trivial changes (formatting, typo fixes) don't need a standalone commit unless that edit is the entire scope of the change being made — fold them into the commit they're actually part of.
 - Commit messages should state what changed and why, not just which files were touched.
-- If possible, turn the commit into multiple non-breaking changes. So, for example, if you need foo to call bar.baz(), one commit implements and exposes baz but doesn't actually call it, (Explain why you're doing it, though!) and the second commit actually calls the function. In a pull request, these patches get submitted together, but they are separate commits. I don't typically do this at the time that I'm writing code; I write the code I want and then rebase into multiple commits.
+- If possible, turn the commit into multiple non-breaking changes. So, for example, if you need foo to call bar.baz(), one commit implements and exposes baz but doesn't actually call it, (Explain why you're doing it, though!) and the second commit actually calls the function. In a pull request, these patches get submitted together, but they are separate commits.
+  - Note: I (the project owner) don't typically do this at the time I'm writing code — I write the code I want and then rebase into multiple commits afterward. That's a description of my own habit, not an instruction to the agent. As an agent, aim to commit atomically as you go rather than writing everything first and restructuring history after — don't run interactive rebases on your own initiative.
 - An exception is made for unit tests. If you implement a feature, add the unit tests that test your feature to the same commit. This keeps the CI from breaking needlessly.
 - Explain what you're doing and why. If you're the creator of the project and are working on a personal project, "because I said so" is just fine. If you're implementing some subtle functionality on some weird device driver bug in the Linux kernel, you might need multiple paragraphs explaining the bug and how your approach solves it.
 - Do not list the changes, make sure explanations are in paragraph form
 
 ## Tech stack
 
-- **Backend:** FastAPI (Python). Chosen specifically because the NLP tooling (spaCy, MarkItDown) is Python-native — backend and pipeline run in the same process, no cross-language calls.
-- **Dependency management:** uv. Handles the virtual environment, dependency resolution, and lockfile (`uv.lock`) for `core/`. See "Development workflow" for usage — don't fall back to pip or manual venvs.
+- **Backend:** FastAPI (Python). Chosen specifically because the NLP tooling (spaCy, MarkItDown) is Python-native — backend and services run in the same process, no cross-language calls.
+- **Dependency management:** uv (see "Development workflow" above for commands and rules — don't fall back to pip or manual venvs).
 - **NLP:** spaCy (`en_core_web_sm`) for sentence structure, POS tagging, and NER. Extraction via `markitdown`.
 - **Frontend:** SvelteKit. Chosen over React because the UI is CRUD-shaped (upload, list, flashcard flip), not state-heavy enough to need a large component ecosystem.
 - **Storage:** SQLite for now. Don't introduce Postgres or any other DB engine without an explicit reason tied to actual multi-user concurrency needs.
@@ -76,7 +78,14 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 
 ## Coding guidelines
 
-- Keep the codebase simple and consistent with the project's current scope. Prefer straightforward implementations over abstractions that are not yet justified by the application. Do not introduce a dependency when the standard library or an existing dependency already solves the problem adequately. Any new dependency must have a clear reason and should not expand the NLP pipeline without a corresponding test demonstrating the problem it solves. Do not refactor unrelated code while implementing a feature. Make the smallest coherent change that completes the requested work. Before modifying code, inspect the existing implementation and follow its established patterns unless there is a concrete reason to change them. Do not assume a library, configuration file, utility, or architectural layer exists. Verify it in the repository first. Keep functions and modules focused on a single responsibility. Do not create layers, wrappers, repositories, services, or abstractions purely for architectural appearance. Introduce them when they provide a meaningful separation of responsibility. Use clear names instead of comments that explain poorly named code. Comments should explain why something is done when the reason is not obvious from the implementation, not restate what the code already says. Do not silently swallow exceptions. Handle expected errors explicitly and allow unexpected errors to remain visible during development.
+- Keep the codebase simple and consistent with the project's current scope. Prefer straightforward implementations over abstractions that are not yet justified by the application.
+- Do not introduce a dependency when the standard library or an existing dependency already solves the problem adequately. Any new dependency must have a clear reason and should not expand the NLP services without a corresponding test demonstrating the problem it solves.
+- Do not refactor unrelated code while implementing a feature. Make the smallest coherent change that completes the requested work.
+- Before modifying code, inspect the existing implementation and follow its established patterns unless there is a concrete reason to change them.
+- Do not assume a library, configuration file, utility, or architectural layer exists. Verify it in the repository first.
+- Keep functions and modules focused on a single responsibility. Do not create layers, wrappers, repositories, services, or abstractions purely for architectural appearance — introduce them only when they provide a meaningful separation of responsibility.
+- Use clear names instead of comments that explain poorly named code. Comments should explain why something is done when the reason is not obvious from the implementation, not restate what the code already says.
+- Do not silently swallow exceptions. Handle expected errors explicitly and allow unexpected errors to remain visible during development.
 
 ### FastAPI
 
@@ -88,8 +97,8 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 - Use 201 for successful resource creation and 204 when an operation succeeds without returning a response body. Use 400, 401, 403, and 404 appropriately when applicable.
 - API errors should have a predictable response structure so the SvelteKit frontend can handle them consistently.
 - Do not expose stack traces, database errors, internal implementation details, or sensitive information through API responses.
-- Keep the NLP pipeline independent from HTTP concerns. Pipeline stages should not depend on FastAPI request objects, response objects, or HTTP-specific exceptions. The API layer should call the pipeline and translate its results into API responses.
-- Keep database access separate from the NLP pipeline. The pipeline should be independently testable without requiring a running FastAPI server or database.
+- Keep the NLP services independent from HTTP concerns. Service stages should not depend on FastAPI request objects, response objects, or HTTP-specific exceptions. The API layer should call the services and translate their results into API responses.
+- Keep database access separate from the NLP services. The services should be independently testable without requiring a running FastAPI server or database.
 
 ### SvelteKit SPA frontend
 
@@ -130,7 +139,7 @@ Each stage should stay isolated and independently testable. Don't collapse stage
 3. **Split** — break cleaned text into sentences.
 4. **Analyze** — run each sentence through spaCy: POS tags, dependency parse, named entities.
 5. **Score** — rule-based filter for which sentences are worth turning into a question (contains a named entity or clear factual claim; reject boilerplate/filler).
-6. **Generate** — cloze (fill-in-the-blank) question generation ONLY for V1. Do not implement WH-question rewriting (do-support / verb tense transformation is unsolved here) or MCQ distractor generation until V1's cloze pipeline is validated.
+6. **Generate** — cloze (fill-in-the-blank) question generation ONLY for V1. Do not implement WH-question rewriting (do-support / verb tense transformation is unsolved here) or MCQ distractor generation until V1's cloze services are validated.
 7. **Validate** — reject a generated question if any of these fail:
    - the blanked term does not reappear elsewhere in the same sentence (answer-leakage check)
    - the sentence's subject is a bare pronoun with no clear referent
@@ -164,18 +173,18 @@ After extraction, check output length against page count. If it's suspiciously s
 
 ## Testing conventions
 
-See "Development workflow" above for the general test-first rules. Specific to this pipeline:
+See "Development workflow" above for the general test-first rules. Specific to this pipeline of services:
 
 - Validation (step 7) needs one test case per rejection rule, using a real example sentence — not a placeholder string.
 - Maintain a small hand-labeled regression set (real sentences with expected good/bad question outcomes) under `core/tests/`. Run it after any change to scoring, generation, or validation logic — this is how "did this change help or hurt" gets answered, not by eyeballing.
-- Don't add new dependencies to the pipeline (new NLP libraries, scoring methods) without a corresponding test showing the specific problem it solves.
+- Don't add new dependencies to the services (new NLP libraries, scoring methods) without a corresponding test showing the specific problem it solves.
 
-## Running locally (no Docker)
+## Running locally
 
 ```bash
-cd app
 uv sync
-uv run uvicorn app.main:app --reload
+cd core
+uv run fastapi dev main.py
 
 cd ui
 npm run dev
