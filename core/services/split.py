@@ -9,25 +9,47 @@ _BULLET_PATTERN = re.compile(r"^(\s*)[-*+]\s+(.*)$")
 _NUMBERED_PATTERN = re.compile(r"^(\s*)\d+\.\s+(.*)$")
 
 
+def _should_join(current: str, next_line: str) -> bool:
+    # A line ending in a comma or semicolon is never a sentence boundary in
+    # edited prose, so it always continues into the next line.
+    if current.endswith((",", ";")):
+        return True
+    # A line ending in terminal punctuation is complete on its own.
+    if current.endswith((".", "!", "?")):
+        return False
+    # Otherwise (no terminal punctuation, no trailing comma or semicolon), join
+    # only if the next line continues in lowercase — the sign of a sentence
+    # broken mid-clause by column wrapping. A new thought, bullet, or fragment
+    # almost always starts capitalized. Defaulting to a boundary is deliberate:
+    # under-merging leaves fragments that Score's no_verb and too_short rules
+    # already reject, while over-merging creates fake sentences that slip past
+    # every downstream guard.
+    return next_line[:1].islower()
+
+
 def _split_pdf(text: str) -> list[str]:
     """Split PDF text into sentences using line-rejoining heuristic + sentencizer."""
     if not text or not text.strip():
         return []
 
     lines = [l.strip() for l in text.split("\n") if l.strip()]
-    joined = []
-    buffer = ""
-    for line in lines:
-        buffer = f"{buffer} {line}".strip() if buffer else line
-        if buffer.endswith((".", "!", "?")):
-            joined.append(buffer)
-            buffer = ""
-    if buffer:
-        joined.append(buffer)
+    logical_lines: list[str] = []
+    current = lines[0] if lines else ""
+    for next_line in lines[1:]:
+        if _should_join(current, next_line):
+            current = f"{current} {next_line}"
+        else:
+            logical_lines.append(current)
+            current = next_line
+    if current:
+        logical_lines.append(current)
 
-    rejoined_text = " ".join(joined)
-    doc = _sentencizer_nlp(rejoined_text)
-    sentences = [sent.text.strip() for sent in doc.sents if sent.text.strip()]
+    sentences: list[str] = []
+    for logical_line in logical_lines:
+        doc = _sentencizer_nlp(logical_line)
+        sentences.extend(
+            sent.text.strip() for sent in doc.sents if sent.text.strip()
+        )
     return sentences
 
 

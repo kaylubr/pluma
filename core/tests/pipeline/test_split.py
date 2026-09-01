@@ -172,3 +172,76 @@ class TestSplitSentencesPPTX:
         text = "The mitochondria is the\npowerhouse of the cell."
         result = split_sentences(text, source_format="pdf")
         assert result == ["The mitochondria is the powerhouse of the cell."]
+
+
+class TestSplitPDFJoinHeuristic:
+    # Verbatim post-clean lines from real_document.pdf, the confirmed smoke-test
+    # failure: the slide title used to be glued onto the body sentence into one
+    # merged card. Bullet glyphs are stripped by the Clean stage before this
+    # text reaches Split.
+    SMOKE_REPRO = (
+        "Emotion Classification\n"
+        "Emotion classification goes beyond polarity to identify\n"
+        "specific emotions like joy, anger, sadness, fear, surprise, or\n"
+        "disgust.\n"
+        "This is useful for nuanced analysis, such as in mental\n"
+        "health apps or brand sentiment tracking.\n"
+        "It often relies on emotion lexicons (anger, fear, sadness,\n"
+        "calm, strong, and happiness) and matching words to\n"
+        "emotion categories.\n"
+        "Multiple emotions can be detected in one text.\n"
+        "Emotion Classification\n"
+        "A basic approach:\n"
+        "Use an emotion lexicon where words are mapped to emotions"
+    )
+
+    def test_smoke_repro_slide_title_not_merged_into_body_sentence(self):
+        sentences = split_sentences(self.SMOKE_REPRO, source_format="pdf")
+        assert any(s == "Emotion Classification" for s in sentences)
+        assert not any("Classification" in s and "polarity" in s for s in sentences)
+        assert any(
+            s
+            == "Emotion classification goes beyond polarity to identify "
+            "specific emotions like joy, anger, sadness, fear, surprise, or disgust."
+            for s in sentences
+        )
+        assert any(s == "A basic approach:" for s in sentences)
+
+    def test_two_unpunctuated_capitalized_fragments_stay_separate(self):
+        text = "Emotion Classification\nAspect-Based Sentiment Analysis"
+        sentences = split_sentences(text, source_format="pdf")
+        assert sentences == [
+            "Emotion Classification",
+            "Aspect-Based Sentiment Analysis",
+        ]
+
+    def test_trailing_comma_forces_join_into_uppercase_next_line(self):
+        text = (
+            "Mitochondria are membrane-bound organelles,\n"
+            "Their main role is to produce ATP."
+        )
+        sentences = split_sentences(text, source_format="pdf")
+        assert sentences == [
+            "Mitochondria are membrane-bound organelles, Their main role is to produce ATP."
+        ]
+
+    def test_standalone_label_survives_as_own_entry(self):
+        text = "Key organelles\nMitochondria produce ATP."
+        sentences = split_sentences(text, source_format="pdf")
+        assert sentences == ["Key organelles", "Mitochondria produce ATP."]
+
+    def test_wrapped_sentence_breaking_before_proper_noun_stays_two_fragments(self):
+        # Known, accepted limitation: a genuinely wrapped sentence that breaks
+        # right before a capitalized proper noun is under-merged into two
+        # fragments, because the continuation does not start lowercase. Solving
+        # it properly needs layout data from the original PDF, which is a much
+        # larger feature than this heuristic is scoped for.
+        text = (
+            "The discovery of\n"
+            "Radium and polonium by Marie Curie changed chemistry."
+        )
+        sentences = split_sentences(text, source_format="pdf")
+        assert sentences == [
+            "The discovery of",
+            "Radium and polonium by Marie Curie changed chemistry.",
+        ]
