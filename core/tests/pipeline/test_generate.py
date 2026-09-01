@@ -45,6 +45,73 @@ class TestGenerateClozeEntity:
         assert result.reason == "noun"
 
 
+class TestGenerateClozeEntitySanity:
+    def test_rejects_entity_span_with_standalone_hyphen(self):
+        result = generate_cloze(
+            make_analyzed(
+                "One-shot Algorithm - Given a request from process P.",
+                entities=[("Algorithm - Given", "ORG")],
+                nouns=["Algorithm", "request", "process"],
+            )
+        )
+        assert result is not None
+        assert result.answer != "Algorithm - Given"
+        assert result.reason == "noun"
+
+    def test_keeps_hyphenated_compound_entity_without_surrounding_spaces(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Jean-Paul Sartre wrote Being and Nothingness.",
+                entities=[("Jean-Paul Sartre", "PERSON")],
+                nouns=["Nothingness"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "Jean-Paul Sartre"
+        assert result.reason == "entity"
+
+    def test_rejects_overly_long_entity_span_without_hyphen(self):
+        result = generate_cloze(
+            make_analyzed(
+                "The Annual General Meeting Committee For Resource Allocation convened today.",
+                entities=[
+                    (
+                        "The Annual General Meeting Committee For Resource Allocation",
+                        "ORG",
+                    )
+                ],
+                nouns=["committee", "today"],
+            )
+        )
+        assert result is not None
+        assert result.reason != "entity"
+
+    def test_all_entities_incoherent_and_no_nouns_returns_none(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Hierarchical Algorithm - Given a request from process P.",
+                entities=[("Hierarchical Algorithm - Given", "ORG")],
+                nouns=[],
+            )
+        )
+        assert result is None
+
+    def test_falls_through_to_second_entity_when_first_is_incoherent(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Waiting for P2 to release R1, the Scheduling Algorithm - Given priority decides next.",
+                entities=[
+                    ("Scheduling Algorithm - Given", "ORG"),
+                    ("P2", "PERSON"),
+                ],
+                nouns=["priority"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "P2"
+        assert result.reason == "entity"
+
+
 class TestGenerateClozeNoun:
     def test_blanks_first_noun_when_no_entity(self):
         result = generate_cloze(

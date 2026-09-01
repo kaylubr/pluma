@@ -46,4 +46,12 @@ REGRESSION_CLOZES = [
         ),
         "Marie Curie",
     ),
+    (
+        _a(
+            "One-shot Algorithm - Given a request from process P for resources.",
+            entities=[("Algorithm - Given", "ORG")],
+            nouns=["Algorithm", "request", "process"],
+        ),
+        "Algorithm",
+    ),
 ]
