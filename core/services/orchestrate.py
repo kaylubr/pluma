@@ -19,7 +19,7 @@ def process_document(session: Session, filename: str, contents: bytes) -> int:
     if not text or not text.strip():
         raise ValueError("No text could be extracted from the file.")
 
-    cleaned = clean_markdown(text)
+    cleaned = clean_markdown(text, source_format=ext)
     sentences = split_sentences(cleaned, ext)
 
     kept = []

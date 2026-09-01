@@ -10,7 +10,7 @@ _BULLET_LINE_PATTERN = re.compile(rf"^[-*+{_BULLET_GLYPHS}]\s+")
 _BULLET_GLYPH_PATTERN = re.compile(f"[{_BULLET_GLYPHS}]")
 
 
-def clean_markdown(text: str) -> str:
+def clean_markdown(text: str, source_format: str = "pdf") -> str:
     if not text or not text.strip():
         return ""
 
@@ -27,15 +27,19 @@ def clean_markdown(text: str) -> str:
         if stripped.startswith("#"):
             continue
 
-        if _BULLET_LINE_PATTERN.match(stripped):
-            content = _BULLET_LINE_PATTERN.sub("", stripped)
-            cleaned_lines.append(content)
-            continue
+        # Bullet and numbered-list markers are owned by Split for PPTX, which
+        # needs them to know where one bullet ends and the next begins; only
+        # strip them for PDF text.
+        if source_format == "pdf":
+            if _BULLET_LINE_PATTERN.match(stripped):
+                content = _BULLET_LINE_PATTERN.sub("", stripped)
+                cleaned_lines.append(content)
+                continue
 
-        if re.match(r"^\d+\.\s+", stripped):
-            content = re.sub(r"^\d+\.\s+", "", stripped)
-            cleaned_lines.append(content)
-            continue
+            if re.match(r"^\d+\.\s+", stripped):
+                content = re.sub(r"^\d+\.\s+", "", stripped)
+                cleaned_lines.append(content)
+                continue
 
         if re.match(r"^(-{3,}|\*{3,}|_{3,})$", stripped):
             continue
