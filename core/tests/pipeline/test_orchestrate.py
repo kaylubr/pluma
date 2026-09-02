@@ -113,8 +113,8 @@ class TestProcessDocument:
             .all()
         )
         answers = [q.answer for q in questions]
-        assert answers == ["P2", "P2"]
+        assert answers == ["scheduling algorithm", "scheduling algorithm"]
         assert sum(1 for q in questions if q.discarded) == 1
         active = [q for q in questions if q.is_valid and not q.discarded]
         assert len(active) == 1
-        assert active[0].answer == "P2"
+        assert active[0].answer == "scheduling algorithm"

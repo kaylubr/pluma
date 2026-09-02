@@ -66,4 +66,14 @@ REGRESSION_CLOZES = [
         _a("A process waits on a mutex.", nouns=["process", "mutex"]),
         "mutex",
     ),
+    # Decline: the only blankable units are diagram identifiers, which are
+    # reconstructable but test no knowledge.
+    (
+        _a(
+            "Process A holds R and wants S",
+            nouns=["Process", "A", "R", "S"],
+            noun_phrases=["Process A"],
+        ),
+        None,
+    ),
 ]

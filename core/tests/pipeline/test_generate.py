@@ -1,4 +1,4 @@
-from core.services.generate import generate_cloze, generate_clozes
+from core.services.generate import generate_cloze, generate_clozes, generate_candidate_clozes
 from core.tests.helper import make_analyzed
 from core.tests.regressions.regression_clozes import REGRESSION_CLOZES
 
@@ -99,16 +99,16 @@ class TestGenerateClozeEntitySanity:
     def test_falls_through_to_second_entity_when_first_is_incoherent(self):
         result = generate_cloze(
             make_analyzed(
-                "Waiting for P2 to release R1, the Scheduling Algorithm - Given priority decides next.",
+                "Waiting for the Banker Algorithm to run, the Scheduling Algorithm - Given priority decides next.",
                 entities=[
                     ("Scheduling Algorithm - Given", "ORG"),
-                    ("P2", "PERSON"),
+                    ("Banker Algorithm", "LAW"),
                 ],
                 nouns=["priority"],
             )
         )
         assert result is not None
-        assert result.answer == "P2"
+        assert result.answer == "Banker Algorithm"
         assert result.reason == "entity"
 
 
@@ -290,6 +290,83 @@ class TestGenerateClozeRarityPreference:
         assert result.reason == "entity"
 
 
+class TestGenerateClozeIdentifierDemotion:
+    def test_identifier_only_sentence_returns_none(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Process A holds R and wants S",
+                nouns=["Process", "A", "R", "S"],
+                noun_phrases=["Process A"],
+            )
+        )
+        assert result is None
+
+    def test_named_entity_not_treated_as_identifier(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Marie Curie studied polonium.",
+                entities=[("Marie Curie", "PERSON")],
+                nouns=["polonium"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "Marie Curie"
+        assert result.reason == "entity"
+
+    def test_concept_phrase_beats_identifier_phrase(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Waiting for process P, the scheduling algorithm decides next.",
+                nouns=["process", "scheduling", "algorithm"],
+                noun_phrases=["process P", "scheduling algorithm"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "scheduling algorithm"
+        assert result.reason == "phrase"
+
+
+class TestGenerateCandidateClozes:
+    def test_pool_ranks_entity_first(self):
+        pool = generate_candidate_clozes(
+            make_analyzed(
+                "Marie Curie studied polonium in the lab.",
+                entities=[("Marie Curie", "PERSON")],
+                nouns=["polonium", "lab"],
+                noun_phrases=["the lab"],
+            )
+        )
+        assert pool
+        assert pool[0].answer == "Marie Curie"
+        assert pool[0].reason == "entity"
+
+    def test_pool_orders_phrases_before_nouns(self):
+        pool = generate_candidate_clozes(
+            make_analyzed(
+                "Waiting for the resource allocator, the scheduling algorithm grants access.",
+                nouns=["resource", "allocator", "scheduling", "algorithm", "access"],
+                noun_phrases=["scheduling algorithm", "resource allocator"],
+            )
+        )
+        answers = [c.answer for c in pool]
+        assert answers[0] in ("scheduling algorithm", "resource allocator")
+
+    def test_pool_excludes_identifiers_and_duplicate_spans(self):
+        pool = generate_candidate_clozes(
+            make_analyzed(
+                "Process P waits on the mutex.",
+                nouns=["Process", "P", "mutex"],
+                noun_phrases=["Process P"],
+            )
+        )
+        assert pool
+        assert all(c.answer != "Process P" for c in pool)
+        assert pool[0].answer == "mutex"
+
+    def test_pool_empty_for_no_eligible_candidate(self):
+        assert generate_candidate_clozes(make_analyzed("Yes")) == []
+
+
 class TestGenerateClozeNone:
     def test_all_candidates_duplicate_returns_none(self):
         result = generate_cloze(
@@ -337,5 +414,8 @@ class TestRegressionClozes:
     def test_regression_set_answers(self):
         for analyzed, expected_answer in REGRESSION_CLOZES:
             result = generate_cloze(analyzed)
+            if expected_answer is None:
+                assert result is None
+                continue
             assert result is not None
             assert result.answer == expected_answer
