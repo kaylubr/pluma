@@ -9,7 +9,16 @@ _BULLET_PATTERN = re.compile(r"^(\s*)[-*+]\s+(.*)$")
 _NUMBERED_PATTERN = re.compile(r"^(\s*)\d+\.\s+(.*)$")
 
 
+def _has_unbalanced_open_parenthesis(text: str) -> bool:
+    return text.count("(") > text.count(")")
+
+
 def _should_join(current: str, next_line: str) -> bool:
+    # An open parenthesis that never closes on the line means the parenthetical
+    # continues onto the next line (e.g. a numeric list split mid-value), so
+    # join regardless of how the next line starts.
+    if _has_unbalanced_open_parenthesis(current):
+        return True
     # A line ending in a comma or semicolon is never a sentence boundary in
     # edited prose, so it always continues into the next line.
     if current.endswith((",", ";")):

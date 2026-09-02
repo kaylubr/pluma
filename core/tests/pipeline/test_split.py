@@ -37,6 +37,16 @@ class TestSplitSentencesPDF:
         result = split_sentences(text, source_format="pdf")
         assert result == ["Final sentence"]
 
+    def test_unbalanced_open_parenthesis_forces_join(self):
+        text = (
+            "Negative words: protested (-1, implies dissatisfaction), widespread (-\n"
+            "0.5, amplifies scale..."
+        )
+        result = split_sentences(text, source_format="pdf")
+        assert len(result) == 1
+        assert "protested" in result[0]
+        assert "0.5" in result[0]
+
     def test_blank_lines_filtered_out(self):
         text = "First paragraph.\n\n\nSecond paragraph."
         result = split_sentences(text, source_format="pdf")
