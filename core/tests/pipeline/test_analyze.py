@@ -179,6 +179,18 @@ class TestAnalyzeSentence:
         assert result.subject_text == "Ribosomes"
         assert result.subject_is_pronoun is False
 
+    def test_subject_ignores_embedded_clause_subject(self):
+        result = analyze_sentence(
+            "Use an emotion lexicon where words are mapped to emotions"
+        )
+        assert result.root_verb == "Use"
+        assert result.subject_text is None
+
+    def test_subject_ignores_adverb_in_imperative(self):
+        result = analyze_sentence("just ignore the problem altogether")
+        assert result.root_verb == "ignore"
+        assert result.subject_text is None
+
     def test_subject_detection_named_subject(self):
         result = analyze_sentence("Marie Curie discovered polonium in 1898.")
         assert result.subject_text == "Marie Curie"

@@ -203,20 +203,32 @@ def analyze_sentence(text: str) -> AnalyzedSentence:
 
     subject_text: str | None = None
     subject_is_pronoun: bool = False
+    # A subject must belong to the main clause: accept only an nsubj/nsubjpass
+    # whose head is the root verb. The first such token anywhere in the doc can
+    # be the subject of an embedded clause ("Use an emotion lexicon where words
+    # are mapped ..." -> "words" is the subject of "mapped", not of "Use").
     for token in doc:
         if token.dep_ in ("nsubj", "nsubjpass"):
-            subject_text = doc[token.left_edge.i : token.right_edge.i + 1].text
-            subject_is_pronoun = token.pos_ == "PRON"
-            break
-    if subject_text is None and root_token is not None:
-        # The same model error can miss the subject relation entirely (the
-        # subject tagged ADV, e.g. "Ribosomes" in the sentence above); fall
-        # back to the closest pre-verbal dependent of the main verb.
-        for token in doc:
-            if token.i < root_token.i and token.head == root_token:
+            if root_token is None or token.head == root_token:
                 subject_text = doc[token.left_edge.i : token.right_edge.i + 1].text
                 subject_is_pronoun = token.pos_ == "PRON"
                 break
+    if subject_text is None and root_token is not None:
+        # The same model error can miss the subject relation entirely (the
+        # subject tagged ADV, e.g. "Ribosomes" in the sentence above). Rescue a
+        # pre-verbal child of the main verb only when it is a real subject or
+        # an otherwise-unexplained sentence-initial capitalized word — not an
+        # ordinary adverb like "just" in "just ignore the problem altogether".
+        for token in doc:
+            if token.i < root_token.i and token.head == root_token:
+                if token.dep_ in ("nsubj", "nsubjpass"):
+                    subject_text = doc[token.left_edge.i : token.right_edge.i + 1].text
+                    subject_is_pronoun = token.pos_ == "PRON"
+                    break
+                if token.i == 0 and token.text[:1].isupper():
+                    subject_text = doc[token.left_edge.i : token.right_edge.i + 1].text
+                    subject_is_pronoun = token.pos_ == "PRON"
+                    break
 
     return AnalyzedSentence(
         text=text,
