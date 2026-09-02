@@ -1,4 +1,5 @@
-from core.services.analyze import AnalyzedSentence, analyze_sentence
+from core.services.analyze import AnalyzedSentence, Candidate, analyze_sentence
+from core.tests.helper import make_analyzed
 
 
 class TestAnalyzeNounPhrases:
@@ -21,6 +22,64 @@ class TestAnalyzeNounPhrases:
 
         result2 = analyze_sentence("   ")
         assert result2.noun_phrases == []
+
+
+class TestAnalyzeCandidates:
+    def test_entity_candidate_with_label(self):
+        result = analyze_sentence("Marie Curie discovered polonium in 1898.")
+        marie = next(c for c in result.candidates if c.text == "Marie Curie")
+        assert marie.kind == "entity"
+        assert marie.entity_label == "PERSON"
+        assert marie.rejected is None
+
+    def test_numeric_entity_candidate_rejected(self):
+        result = analyze_sentence("Marie Curie discovered polonium in 1898.")
+        year = next(c for c in result.candidates if c.text == "1898")
+        assert year.kind == "entity"
+        assert year.entity_label == "DATE"
+        assert year.rejected == "numeric"
+
+    def test_noun_candidate_for_single_token(self):
+        result = analyze_sentence("Ribosomes synthesize proteins.")
+        proteins = next(c for c in result.candidates if c.text == "proteins")
+        assert proteins.kind == "noun"
+        assert proteins.rejected is None
+
+    def test_phrase_candidate_for_multiword_concept(self):
+        result = analyze_sentence("Lexicon-based methods analyze sentiment.")
+        phrase = next(c for c in result.candidates if c.text == "Lexicon-based methods")
+        assert phrase.kind == "phrase"
+        assert phrase.rejected is None
+
+    def test_identifier_phrase_and_contained_noun_flagged(self):
+        result = analyze_sentence("Process A holds R and wants S")
+        phrase = next(c for c in result.candidates if c.text == "Process A")
+        assert phrase.identifier_like is True
+        process = next(c for c in result.candidates if c.text == "Process")
+        assert process.identifier_like is True
+
+    def test_single_letter_nouns_rejected(self):
+        result = analyze_sentence("Process A holds R and wants S")
+        letters = {c.text for c in result.candidates if c.kind == "noun" and len(c.text) == 1}
+        assert {"A", "R", "S"} <= letters
+        assert all(
+            c.rejected == "single_letter"
+            for c in result.candidates
+            if c.kind == "noun" and len(c.text) == 1
+        )
+
+    def test_hyphen_bridge_entity_rejected(self):
+        result = make_analyzed(
+            "One-shot Algorithm - Given a request from process P.",
+            entities=[("Algorithm - Given", "ORG")],
+            nouns=["Algorithm", "request", "process"],
+        )
+        span = next(c for c in result.candidates if c.text == "Algorithm - Given")
+        assert span.rejected == "hyphen_bridge"
+
+    def test_candidates_default_empty_for_empty_text(self):
+        assert analyze_sentence("").candidates == []
+        assert analyze_sentence("   ").candidates == []
 
 
 class TestAnalyzeSentence:

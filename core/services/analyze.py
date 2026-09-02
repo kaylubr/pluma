@@ -1,6 +1,19 @@
+import re
 from dataclasses import dataclass
 from spacy.tokens import Token
 from core.services.nlp import get_analyzer
+
+
+@dataclass(frozen=True)
+class Candidate:
+    """A span worth blanking, surfaced from Analyze so downstream stages rank
+    real concept units instead of re-deriving them from flat token lists."""
+
+    text: str
+    kind: str  # "entity" | "phrase" | "noun"
+    entity_label: str | None
+    identifier_like: bool
+    rejected: str | None  # structural reason this span must never be blanked
 
 
 @dataclass
@@ -12,6 +25,89 @@ class AnalyzedSentence:
     subject_text: str | None
     subject_is_pronoun: bool
     noun_phrases: list[str]
+    candidates: list[Candidate] | None = None
+
+    def __post_init__(self) -> None:
+        if self.candidates is None:
+            self.candidates = _derive_candidates(
+                self.entities, self.noun_phrases, self.nouns
+            )
+
+
+_NUMERIC_LABELS = frozenset(
+    {"DATE", "TIME", "CARDINAL", "ORDINAL", "QUANTITY", "PERCENT", "MONEY"}
+)
+
+_HYPHEN_BRIDGE_PATTERN = re.compile(r"\s-\s")
+_MAX_SPAN_WORDS = 6
+
+
+def _hygiene_reason(text: str, kind: str, entity_label: str | None) -> str | None:
+    if kind == "entity" and entity_label in _NUMERIC_LABELS:
+        return "numeric"
+    if len(text) == 1 and (text.isalpha() or text.isdigit()):
+        return "single_letter"
+    if _HYPHEN_BRIDGE_PATTERN.search(text):
+        return "hyphen_bridge"
+    if len(text.split()) > _MAX_SPAN_WORDS:
+        return "too_many_words"
+    return None
+
+
+def _identifier_like(text: str) -> bool:
+    """True when a span reads as a diagram/identifier label rather than a
+    concept: a bare single letter, or an alphanumeric token such as R1/P2."""
+    for token in text.split():
+        if len(token) == 1 and (token.isalpha() or token.isdigit()):
+            return True
+        if any(ch.isalpha() for ch in token) and any(ch.isdigit() for ch in token):
+            return True
+    return False
+
+
+def _derive_candidates(
+    entities: list[tuple[str, str]],
+    noun_phrases: list[str],
+    nouns: list[str],
+) -> list[Candidate]:
+    candidates = [
+        Candidate(
+            text=text,
+            kind="entity",
+            entity_label=label,
+            identifier_like=_identifier_like(text),
+            rejected=_hygiene_reason(text, "entity", label),
+        )
+        for text, label in entities
+    ]
+    phrases = [
+        Candidate(
+            text=text,
+            kind="phrase",
+            entity_label=None,
+            identifier_like=_identifier_like(text),
+            rejected=_hygiene_reason(text, "phrase", None),
+        )
+        for text in noun_phrases
+    ]
+    candidates.extend(phrases)
+    identifier_words: set[str] = set()
+    for span in candidates:
+        if span.identifier_like:
+            identifier_words.update(span.text.split())
+    candidates.extend(
+        Candidate(
+            text=text,
+            kind="noun",
+            entity_label=None,
+            identifier_like=_identifier_like(text) or any(
+                word in identifier_words for word in text.split()
+            ),
+            rejected=_hygiene_reason(text, "noun", None),
+        )
+        for text in nouns
+    )
+    return candidates
 
 
 def _noun_phrases(doc) -> list[str]:
