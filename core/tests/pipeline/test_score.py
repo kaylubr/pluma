@@ -173,6 +173,53 @@ class TestScoreNonProseFragments:
         assert result.worth_question is True
         assert result.reason == "named_entity"
 
+    def test_reject_subjectless_then_conditional(self):
+        analyzed = analyze_sentence(
+            "if the resource R does not exist or is in use, then refuse the request"
+        )
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "pseudocode_conditional"
+
+    def test_reject_lone_if_condition_fragment(self):
+        analyzed = analyze_sentence("If graph contains a cycle")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "pseudocode_conditional"
+
+    def test_reject_subjectless_then_nominal_conditional(self):
+        analyzed = analyze_sentence(
+            "if only one instance per resource type, then deadlock"
+        )
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "pseudocode_conditional"
+
+    def test_keep_prose_conditional_with_subject_consequence(self):
+        analyzed = analyze_sentence("If a process holds a resource, it can deadlock.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+
+    def test_keep_prose_conditional_with_modal_subject(self):
+        analyzed = analyze_sentence("If a deadlock occurs, the system must recover.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+
+    def test_keep_explicit_subject_then_consequence(self):
+        analyzed = analyze_sentence(
+            "If the resource is unavailable, then the system rejects the request."
+        )
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+
+    def test_reject_worked_arithmetic_example(self):
+        analyzed = analyze_sentence(
+            "Joy = +2 (thrilled) + 1.5 (amazing) + 0.5 (exclamation) = +4."
+        )
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "worked_example"
+
 
 class TestScoreSentences:
     def test_batch_matches_input_order(self):

@@ -26,6 +26,51 @@ _EXAMPLE_LIST_PATTERN = re.compile(
     r",\s*[A-Za-z][^,()]*\(\s*[+-]?\s*\d+(?:\.\d+)?\s*\)"
 )
 
+# A signed number immediately followed by a parenthetical gloss, e.g. the
+# "+2 (thrilled) + 1.5 (amazing)" chain in a worked arithmetic example.
+_WORKED_GLOSS_PATTERN = re.compile(r"[+-]\s*\d+(?:\.\d+)?\s*\(")
+
+# Words that introduce an explicit noun-phrase subject ("then the system ...").
+# A 'then' consequence starting with any other word is a bare imperative or a
+# nominal fragment, i.e. procedural.
+_EXPLICIT_SUBJECT_STARTERS = frozenset(
+    {
+        "the", "a", "an", "this", "that", "these", "those",
+        "its", "their", "our", "your", "his", "her", "my",
+        "each", "every", "some", "any", "all", "no", "one",
+        "another", "both",
+    }
+)
+
+
+def _is_pseudocode_conditional(text: str) -> bool:
+    words = text.split()
+    if not words:
+        return False
+    if words[0].lower().strip(":,.;") != "if":
+        return False
+    lower = text.lower()
+    then_match = re.search(r"\bthen\b", lower)
+    if then_match:
+        # A 'then' consequence with no explicit subject ("then refuse the
+        # request", "then deadlock") is a procedural branch, not a claim.
+        after = lower[then_match.end():].strip()
+        if not after:
+            return True
+        if after.split()[0].strip(":,.;") in _EXPLICIT_SUBJECT_STARTERS:
+            return False
+        return True
+    # A lone condition with no 'then', no clause comma, and no terminal
+    # punctuation is a flattened outline fragment ("If graph contains a
+    # cycle"), whose apodosis lives in a sibling bullet.
+    if "," not in text and not text.rstrip().endswith((".", "!", "?", ";")):
+        return True
+    return False
+
+
+def _is_worked_example(text: str) -> bool:
+    return "=" in text and len(_WORKED_GLOSS_PATTERN.findall(text)) >= 2
+
 _WH_WORDS = frozenset(
     {"what", "which", "who", "whom", "whose", "why", "how", "where", "when"}
 )
@@ -107,6 +152,12 @@ def score_sentence(analyzed: AnalyzedSentence) -> ScoredSentence:
 
     if _EXAMPLE_LIST_PATTERN.search(text):
         return ScoredSentence(text=text, worth_question=False, reason="example_list")
+
+    if _is_pseudocode_conditional(text):
+        return ScoredSentence(text=text, worth_question=False, reason="pseudocode_conditional")
+
+    if _is_worked_example(text):
+        return ScoredSentence(text=text, worth_question=False, reason="worked_example")
 
     if _is_interrogative(analyzed):
         return ScoredSentence(text=text, worth_question=False, reason="interrogative")

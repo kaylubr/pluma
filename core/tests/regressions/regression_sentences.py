@@ -24,6 +24,12 @@ REGRESSION_SENTENCES = [
     ('Ignore neutral words like "girl" or "she."', False),
     ("Strategies for dealing with Deadlocks", False),
 
+    # Reject: procedural pseudocode and worked arithmetic examples
+    ("if the resource R does not exist or is in use, then refuse the request", False),
+    ("If graph contains a cycle", False),
+    ("if only one instance per resource type, then deadlock", False),
+    ("Joy = +2 (thrilled) + 1.5 (amazing) + 0.5 (exclamation) = +4.", False),
+
     # Keep: factual claims from real lesson fixtures
     ("Cells are the basic unit of life", True),
     ("Mitochondria produce ATP", True),
