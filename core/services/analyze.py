@@ -84,9 +84,11 @@ def _hygiene_reason(text: str, kind: str, entity_label: str | None) -> str | Non
 
 def _identifier_like(text: str) -> bool:
     """True when a span reads as a diagram/identifier label rather than a
-    concept: a bare single letter, or an alphanumeric token such as R1/P2."""
+    concept: a bare single letter, or an alphanumeric token such as R1/P2. A
+    lone digit is an ordinary quantifier ("4 conditions"), not a label, so it
+    does not count on its own."""
     for token in text.split():
-        if len(token) == 1 and (token.isalpha() or token.isdigit()):
+        if len(token) == 1 and token.isalpha():
             return True
         if any(ch.isalpha() for ch in token) and any(ch.isdigit() for ch in token):
             return True

@@ -68,6 +68,11 @@ class TestAnalyzeCandidates:
             if c.kind == "noun" and len(c.text) == 1
         )
 
+    def test_digit_quantifier_does_not_make_phrase_identifier_like(self):
+        result = analyze_sentence("Negate each of 4 conditions")
+        conditions = next(c for c in result.candidates if c.text == "conditions")
+        assert conditions.identifier_like is False
+
     def test_hyphen_bridge_entity_rejected(self):
         result = make_analyzed(
             "One-shot Algorithm - Given a request from process P.",
