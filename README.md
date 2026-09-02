@@ -4,16 +4,18 @@ A free, offline reviewer-generator for students. Upload a lesson document and ge
 
 ## Description
 
-Pluma turns a lesson file into study questions. It extracts the text, picks the sentences that state factual claims, and generates a cloze (fill-in-the-blank) question from each one. The result is a set of flashcards you can review and prune.
+Pluma turns a lesson file into study questions. It extracts the text, picks the sentences that state factual claims, and generates a cloze (fill-in-the-blank) question from each one that has a concept worth blanking. The result is a set of flashcards you can review and prune.
 
-Everything runs locally. Question generation is rule-based: there are no LLM API calls and no generated content that cannot be traced back to the source. Every answer is a term taken word-for-word from the original sentence, so a student can verify any answer against the material.
+Everything runs locally. Question generation is rule-based: there are no LLM API calls and no generated content that cannot be traced back to the source. Every answer is a term taken word-for-word from the original sentence, so a student can verify any answer against the material. Question quality is a relative judgment, the pipeline prefers the most specific, least generic concept available in a sentence and declines to make a card at all when only weak options exist, rather than an attempt to measure "importance" absolutely.
 
 ### Features
 
 - Accepts text-based PDF and PPTX files.
-- Runs a deterministic pipeline: extract, clean, split, analyze, score, generate, validate, store, serve.
+- Runs a deterministic pipeline: extract, clean, split, analyze, score, generate, validate, dedupe, store, serve.
 - Produces cloze questions with word-for-word traceable answers.
-- Validates each question (word length, ambiguous blanks, answer leakage, bare-pronoun subjects) before serving it.
+- Picks the most specific blankable concept: candidates are ranked by kind and rarity, and diagram labels (e.g. `Process A`, `R1`) or concept fragments are never blanked.
+- Validates each question structurally (word length, ambiguous blanks, answer leakage, bare-pronoun subjects, fragment answers) before serving it.
+- Removes near-duplicate cards within a deck while still allowing the same answer to appear in genuinely different questions.
 - Persists everything to a local SQLite database with versioned migrations.
 - Exposes a small HTTP API for creating reviewers, listing them, fetching questions, and discarding bad ones manually.
 
@@ -30,14 +32,15 @@ The pipeline stages are isolated services in the backend:
 1. **Extract** — converts the uploaded file to Markdown text.
 2. **Clean** — strips Markdown syntax and formatting noise before anything else sees the text.
 3. **Split** — breaks the cleaned text into sentences.
-4. **Analyze** — runs each sentence through spaCy for part-of-speech tags, dependency parsing, and named entities.
-5. **Score** — decides which sentences are worth turning into a question and rejects filler, fragments, and boilerplate.
-6. **Generate** — picks a content term in each kept sentence and blanks it.
-7. **Validate** — rejects questions that are too short or too long, have ambiguous or leaking answers, or start from a bare-pronoun subject.
-8. **Store** — persists the kept sentences and every generated question with its validation result.
-9. **Serve** — the API returns the valid, non-discarded questions as a flashcard deck.
+4. **Analyze** — runs each sentence through spaCy for part-of-speech tags, dependency parsing, named entities, and noun chunks, and surfaces the spans worth blanking (entities, phrases, nouns) with their structural checks already applied.
+5. **Score** — decides which sentences are worth turning into a question and rejects fragments, labels, equations, and boilerplate before Generate ever sees them.
+6. **Generate** — ranks the candidate spans of each kept sentence by kind and rarity (using an offline word-frequency table as a genericness signal) and blanks the best one. If a sentence's only candidates are generic or diagram labels, no question is produced — an omitted card beats a weak one.
+7. **Validate** — rejects questions that are structurally unsound: too short or too long, ambiguous or leaking answers, a bare-pronoun subject, or an answer that fragments a larger concept span.
+8. **Dedupe** — compares each card's surface against earlier cards in the same document and hides near-duplicates, so duplicated slide content does not appear twice while the same answer in different questions is kept.
+9. **Store** — persists the kept sentences and every generated question with its validation result and duplicate status.
+10. **Serve** — the API returns the valid, non-discarded questions as a flashcard deck.
 
-The backend is FastAPI, with spaCy for language analysis, MarkItDown for extraction, and SQLite accessed through the SQLAlchemy ORM with Alembic migrations. A SvelteKit frontend is planned but not yet built; the API and its interactive documentation are currently the way to use the application.
+The backend is FastAPI, with spaCy for language analysis, MarkItDown for extraction, `wordfreq` for offline frequency-based candidate ranking, and SQLite accessed through the SQLAlchemy ORM with Alembic migrations. A SvelteKit frontend is planned but not yet built; the API and its interactive documentation are currently the way to use the application.
 
 ## Requirements
 
@@ -155,7 +158,3 @@ Planned and deferred work:
 ## Contributing
 
 Contributions are welcome. The project follows a strict tests-first workflow: write the tests for a change before the implementation, keep commits atomic, and run the full suite before finishing. Read `AGENTS.md` at the repository root before making changes, since it documents the architecture decisions and scope that the project intentionally keeps.
-
-## Project status
-
-Actively developed. The V1 pipeline is functional; the frontend and remaining V1 scope items are in progress.

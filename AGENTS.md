@@ -12,19 +12,17 @@ A free, offline reviewer-generator for students. It takes a lesson document, ext
 
 ```
 pluma/
-├── core/          FastAPI backend + NLP services
-│   │
-│   │── main.py
-│   │── api/       route handlers (future — Serve stage)
-│   │── services/  extract, clean, split, analyze, score, generate, validate, store
-│   │── models/    SQLAlchemy ORM models (one file per model)
-│   │── schemas/   future Pydantic API request/response schemas (added with Serve)
-│   │── db/        session.py
-│   │── alembic/   versioned database migrations
-│   └── tests/
-├── ui/
-│   │── src/       SvelteKit frontend
-│   └── tests/
+├── core/             FastAPI backend + NLP services
+│   │── main.py       FastAPI app (lifespan: preloads NLP + ensures schema)
+│   │── api/          route handlers (reviewers, questions) + thin controllers
+│   │── services/     one module per stage: analyze, clean, dedupe, extractors,
+│   │                 generate, orchestrate, score, split, store, validate, nlp
+│   │── models/       SQLAlchemy ORM models (one file per model)
+│   │── schemas/      Pydantic API request/response schemas
+│   │── db/           session.py
+│   │── alembic/      versioned database migrations
+│   └── tests/        pipeline/, persistence/, api/, regressions/, fixtures/
+├── ui/               SvelteKit frontend (planned — not yet in the repo)
 ├── AGENTS.md
 └── README.md
 ```
@@ -73,8 +71,8 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 
 - **Backend:** FastAPI (Python). Chosen specifically because the NLP tooling (spaCy, MarkItDown) is Python-native — backend and services run in the same process, no cross-language calls.
 - **Dependency management:** uv (see "Development workflow" above for commands and rules — don't fall back to pip or manual venvs).
-- **NLP:** spaCy (`en_core_web_sm`) for sentence structure, POS tagging, and NER. Extraction via `markitdown`.
-- **Frontend:** SvelteKit. Chosen over React because the UI is CRUD-shaped (upload, list, flashcard flip), not state-heavy enough to need a large component ecosystem.
+- **NLP:** spaCy (`en_core_web_sm`) for sentence structure, POS tagging, and NER. Extraction via `markitdown`. `wordfreq` provides an offline, deterministic general-English word-frequency lookup used only for rarity-based candidate ranking in Generate — a lookup table, not a model, with no inference.
+- **Frontend:** SvelteKit (planned, not yet in the repo). Chosen over React because the UI is CRUD-shaped (upload, list, flashcard flip), not state-heavy enough to need a large component ecosystem.
 - **Storage:** SQLite via SQLAlchemy ORM, with Alembic for versioned migrations and Pydantic for API request/response schemas at the API boundary only. Don't introduce Postgres or any other DB engine without an explicit reason tied to actual multi-user concurrency needs.
 
 ## Coding guidelines
@@ -133,21 +131,28 @@ Dependency management uses **uv**, not pip/venv directly. Do not manually create
 
 ## Pipeline stages (in order)
 
-Each stage should stay isolated and independently testable. Don't collapse stages together.
+Each stage should stay isolated and independently testable. Don't collapse stages together. Each stage owns exactly one question about the input:
+
+- **Score:** "should this textual unit be considered at all?"
+- **Analyze:** "what meaningful spans/concepts exist in this unit?"
+- **Generate:** "which candidate best represents useful knowledge?"
+- **Validate:** "is this generated cloze structurally acceptable?"
+- **Document-level selection:** "does the final set provide useful, non-redundant coverage?"
+
+A central design distinction: **structural validity and question quality are different axes and live in different stages.** Validate decides structural acceptability (binary, high precision). Question quality is a _relative, comparative_ judgment — best among the candidates present, least redundant across the deck — so it belongs to Generate's ranking and the document-level stage, never to Validate's boolean. No stage tries to semantically judge whether a concept "sounds educational"; classical NLP approximates information value, and we accept those limits. A kept sentence that has no good concept to blank legitimately produces **no card** (`generate_cloze` returns `None`); that is a feature, not a bug.
 
 1. **Extract** — `markitdown` converts the uploaded file to Markdown text.
-2. **Clean** — strip Markdown syntax (headings, bullets, bold/italic markers, table pipes) before anything downstream sees the text. Headings are useful signal _before_ stripping (skip lines starting with `#` as likely non-sentence filler) — don't discard that signal, just don't let raw syntax reach spaCy.
-3. **Split** — break cleaned text into sentences.
-4. **Analyze** — run each sentence through spaCy: POS tags, dependency parse, named entities.
-5. **Score** — rule-based filter for which sentences are worth turning into a question (contains a named entity or clear factual claim; reject boilerplate/filler).
-6. **Generate** — cloze (fill-in-the-blank) question generation ONLY for V1. Do not implement WH-question rewriting (do-support / verb tense transformation is unsolved here) or MCQ distractor generation until V1's cloze services are validated.
-7. **Validate** — reject a generated question if any of these fail:
-   - the blanked term does not reappear elsewhere in the same sentence (answer-leakage check)
-   - the sentence's subject is a bare pronoun with no clear referent
-   - sentence word count is below ~5–6 or above ~25–30
-   - the blanked term appears more than once in the sentence (ambiguous blank)
-8. **Store** — persist sentence + question + validation result to SQLite via SQLAlchemy. Persists the sentences the caller supplies (Score-kept ones, per orchestration) and every generated question with its validation result; it does not filter, score, or validate.
-9. **Serve** — API returns questions to the frontend for flashcard mode.
+2. **Clean** — strip Markdown syntax (headings, bullets, bold/italic markers, table pipes) before anything downstream sees the text. Headings are useful signal _before_ stripping (skip lines starting with `#` as likely non-sentence filler) — don't discard that signal, just don't let raw syntax reach spaCy. Bullet markers are preserved for PPTX and only stripped for PDF, because Split owns bullet boundaries.
+3. **Split** — break cleaned text into sentences. PDF text uses a line-rejoining heuristic that defaults to a boundary; PPTX treats bullets and numbered items as separate entries.
+4. **Analyze** — run each sentence through spaCy (POS, dependency parse, NER, noun chunks) and package the result as an `AnalyzedSentence`. Beyond the flat summaries downstream relies on (`entities`, `nouns`, `noun_phrases`, root verb, subject), it exposes `candidates`: one `Candidate` per entity/phrase/noun span with a structural rejection reason or `None`, plus an `identifier_like` flag. Candidate hygiene lives HERE, not in Generate — a candidate is rejected (reason set) when it is a numeric-labeled entity (DATE/TIME/CARDINAL/ORDINAL/QUANTITY/PERCENT/MONEY), a bare single letter/digit, contains a standalone hyphen bridge (`\s-\s`), or exceeds 6 words. `identifier_like` marks diagram labels such as `Process A`, `R1`, `P2`; a role noun bound to an identifier unit (the `Process` in `Process A`) inherits the flag so it cannot slip through as a bare noun. Synthetic tests build these objects with `make_analyzed`, which derives candidates from the supplied lists.
+5. **Score** — rule-based whole-unit gate deciding `worth_question`, with one reason code per rejection cause so failures stay attributable. Rejections: `empty`, `too_short` (<2 words), `step_label` (leading step/phase/part + number), `notation` (arrow/flow symbols), `symbol_heavy` (alphabetic ratio below half), `lead_in` (unit ends in `:`), `example_list` (comma-separated items with signed parenthetical numbers), `interrogative`, `imperative`, `boilerplate` (known slide-heading opener), `no_verb`, and `no_claim`. Accepted reasons are `named_entity` and `factual_claim`. Score consumes `AnalyzedSentence`, so it runs after Analyze; the pattern-based rejections run before any parse-dependent check because spaCy's parse is unreliable on non-prose input.
+6. **Generate** — cloze (fill-in-the-blank) question generation ONLY for V1. Do not implement WH-question rewriting (do-support / verb tense transformation is unsolved here) or MCQ distractor generation until V1's cloze services are validated. Generate takes the sentence's eligible candidates (not structurally rejected, not `identifier_like`), ranks them by (kind, rarity) — kind order entity → phrase → noun, rarity from the offline `wordfreq` frequency table as a genericness heuristic — and emits every reconstructable option in preference order through `generate_candidate_clozes`; `generate_cloze` returns the top one or `None`. An answer is only produced when the span occurs exactly once in the sentence. Reason codes are the candidate kind: `entity`, `phrase`, or `noun`. Do not grow a pile of rejection rules here; candidate quality decisions belong in candidate construction (Analyze) and ranking.
+7. **Validate** — structural gate for one generated cloze. Reject (reason codes in `reasons`) when the sentence is under 5 or over 30 words (`too_short`/`too_long`), the subject is a bare pronoun (`bare_pronoun_subject`), the answer occurs more than once (`ambiguous_blank`), the answer still appears in the blanked text (`answer_leakage`), or — when the sentence has candidate knowledge — the answer is not one of its structurally valid candidate spans (`fragment_answer`, e.g. blanking the adjective `common` out of `common method`). Validate never judges question quality.
+8. **Document-level selection** (`dedupe`) — runs over the full generated+validated set for a document before storing. A valid card is marked `discarded` when its surface (blanked frame plus answer) is a near-duplicate of an earlier valid card (conservative token-overlap threshold), catching duplicated slide content and case/plural drift. A repeated answer inside genuinely different questions is NOT redundant and is not discarded. Invalid cards pass through untouched; nothing is dropped or reordered — the stage only sets the `discarded` flag, which also backs the manual discard button.
+9. **Store** — persist sentence + question + validation result to SQLite via SQLAlchemy. Persists the sentences the caller supplies (Score-kept ones, per orchestration) and every generated question with its validation and discarded state; it does not filter, score, or validate.
+10. **Serve** — API returns the valid, non-discarded questions to the frontend for flashcard mode.
+
+`core/services/orchestrate.py` composes these stages and is the only place that does: per-sentence analyze → score, keeping survivors, then generate → validate per kept sentence, then document-level selection, then store. Services never touch the database or HTTP; orchestrate is the seam.
 
 ## V1 scope — do not exceed without explicit instruction
 
@@ -176,9 +181,11 @@ After extraction, check output length against page count. If it's suspiciously s
 
 See "Development workflow" above for the general test-first rules. Specific to this pipeline of services:
 
-- Validation (step 7) needs one test case per rejection rule, using a real example sentence — not a placeholder string.
-- Maintain a small hand-labeled regression set (real sentences with expected good/bad question outcomes) under `core/tests/`. Run it after any change to scoring, generation, or validation logic — this is how "did this change help or hurt" gets answered, not by eyeballing.
-- Don't add new dependencies to the services (new NLP libraries, scoring methods) without a corresponding test showing the specific problem it solves.
+- Validation needs one test case per rejection rule, using a real example sentence — not a placeholder string.
+- Keep one small hand-labeled regression set per decision-making stage under `core/tests/regressions/`: `regression_sentences.py` (Score: expected `worth_question`), `regression_clozes.py` (Generate: expected answer, which may be `None` when a sentence should produce no card), and `regression_validations.py` (Validate: expected `is_valid`). Run them after any change to scoring, generation, or validation logic — this is how "did this change help or hurt" gets answered, not by eyeballing.
+- Regression inputs are built by hand with `make_analyzed` so they mirror Analyze's output without spaCy/NER coupling; real-parsing behavior is owned by `test_analyze.py`, and synthetic candidate-selection behavior is owned by `test_generate.py`.
+- When an intentional change to ranking or selection makes a previously-correct regression expectation obsolete, update the expectation to the new intended behavior with a rationale in the commit — the regression set records intended outcomes, not sacred constants. Never rewrite a test to paper over a bug.
+- Don't add new dependencies to the services (new NLP libraries, scoring methods) without a corresponding test showing the specific problem it solves. `wordfreq` is the existing example: it was added (via `uv add`) with tests demonstrating that rarity-based ranking prefers a specific term over a generic one.
 
 ## Running locally
 
