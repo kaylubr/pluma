@@ -120,7 +120,7 @@ def score_sentence(analyzed: AnalyzedSentence) -> ScoredSentence:
     if analyzed.root_verb is None:
         return ScoredSentence(text=text, worth_question=False, reason="no_verb")
 
-    if analyzed.entities and analyzed.root_verb:
+    if analyzed.entities and analyzed.root_verb and analyzed.subject_text:
         return ScoredSentence(text=text, worth_question=True, reason="named_entity")
 
     if analyzed.root_verb and analyzed.subject_text and analyzed.nouns:

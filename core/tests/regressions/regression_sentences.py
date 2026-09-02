@@ -20,6 +20,10 @@ REGRESSION_SENTENCES = [
     ("A common method is to:", False),
     ("Negative words: skinny (-1), bad (-1), hate (-1)", False),
 
+    # Reject: entity mistag on subject-less fragments
+    ('Ignore neutral words like "girl" or "she."', False),
+    ("Strategies for dealing with Deadlocks", False),
+
     # Keep: factual claims from real lesson fixtures
     ("Cells are the basic unit of life", True),
     ("Mitochondria produce ATP", True),

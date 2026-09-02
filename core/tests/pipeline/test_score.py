@@ -155,6 +155,24 @@ class TestScoreNonProseFragments:
         result = score_sentence(analyzed)
         assert result.worth_question is True
 
+    def test_reject_mistagged_entity_fragment_without_subject(self):
+        analyzed = analyze_sentence('Ignore neutral words like "girl" or "she."')
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "no_claim"
+
+    def test_reject_entity_heading_without_subject(self):
+        analyzed = analyze_sentence("Strategies for dealing with Deadlocks")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "no_claim"
+
+    def test_keep_entity_claim_with_real_subject(self):
+        analyzed = analyze_sentence("Marie Curie discovered polonium in 1898.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+        assert result.reason == "named_entity"
+
 
 class TestScoreSentences:
     def test_batch_matches_input_order(self):

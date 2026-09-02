@@ -11,8 +11,8 @@ from core.tests.helper import TINY_PDF
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 DUPLICATED_CONTENT = (
-    "Waiting for P2 to release R1, the scheduling algorithm decides next.\n"
-    "Waiting for P2 to release R1, the scheduling algorithm decides next."
+    "A process waits on a mutex that guards the buffer.\n"
+    "A process waits on a mutex that guards the buffer."
 )
 
 
@@ -115,4 +115,4 @@ class TestProcessDocument:
         assert len(questions) == 1
         active = [q for q in questions if q.is_valid and not q.discarded]
         assert len(active) == 1
-        assert active[0].answer == "scheduling algorithm"
+        assert active[0].answer == "mutex"
