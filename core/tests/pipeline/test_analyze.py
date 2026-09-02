@@ -73,6 +73,11 @@ class TestAnalyzeCandidates:
         conditions = next(c for c in result.candidates if c.text == "conditions")
         assert conditions.identifier_like is False
 
+    def test_closed_class_pronoun_candidate_rejected(self):
+        result = analyze_sentence("Process B holds nothing but wants T")
+        nothing = next(c for c in result.candidates if c.text == "nothing")
+        assert nothing.rejected == "function_word"
+
     def test_hyphen_bridge_entity_rejected(self):
         result = make_analyzed(
             "One-shot Algorithm - Given a request from process P.",

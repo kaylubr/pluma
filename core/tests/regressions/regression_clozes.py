@@ -76,4 +76,32 @@ REGRESSION_CLOZES = [
         ),
         None,
     ),
+    # Decline: only closed-class pronouns survive identifier/function-word
+    # exclusion, and none of them carries content.
+    (
+        _a(
+            "S can be allocated to any of them, which will then use it until finishing",
+            nouns=["S"],
+            noun_phrases=["S", "any", "them", "which", "it"],
+        ),
+        None,
+    ),
+    (
+        _a(
+            "Process B holds nothing but wants T",
+            nouns=["Process", "B", "T"],
+            noun_phrases=["Process B", "nothing", "T"],
+        ),
+        None,
+    ),
+    # The digit-quantifier phrase is rejected and 'each' is closed-class, so
+    # the content noun wins instead of the pronoun.
+    (
+        _a(
+            "Negate each of 4 conditions",
+            nouns=["conditions"],
+            noun_phrases=["each", "4 conditions"],
+        ),
+        "conditions",
+    ),
 ]

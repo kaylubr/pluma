@@ -326,6 +326,38 @@ class TestGenerateClozeIdentifierDemotion:
         assert result.answer == "Marie Curie"
         assert result.reason == "entity"
 
+    def test_function_word_only_sentence_returns_none(self):
+        result = generate_cloze(
+            make_analyzed(
+                "S can be allocated to any of them, which will then use it until finishing",
+                nouns=["S"],
+                noun_phrases=["S", "any", "them", "which", "it"],
+            )
+        )
+        assert result is None
+
+    def test_nothing_only_sentence_returns_none(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Process B holds nothing but wants T",
+                nouns=["Process", "B", "T"],
+                noun_phrases=["Process B", "nothing", "T"],
+            )
+        )
+        assert result is None
+
+    def test_negate_each_prefers_conditions_after_closed_class_exclusion(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Negate each of 4 conditions",
+                nouns=["conditions"],
+                noun_phrases=["each", "4 conditions"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "conditions"
+        assert result.reason == "noun"
+
     def test_concept_phrase_beats_identifier_phrase(self):
         result = generate_cloze(
             make_analyzed(

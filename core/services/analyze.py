@@ -44,6 +44,20 @@ _NUMERIC_LABELS = frozenset(
 _HYPHEN_BRIDGE_PATTERN = re.compile(r"\s[-–—]\s")
 _MAX_SPAN_WORDS = 6
 
+# Closed-class words that can be the sole surviving candidate in a sentence
+# whose real content is identifiers or is otherwise ineligible. They are
+# content-free as cloze answers, so reject them outright.
+_FUNCTION_WORDS = frozenset(
+    {
+        "each", "any", "some", "none", "other", "others",
+        "nothing", "something", "someone",
+        "it", "this", "that", "these", "those", "which",
+        "they", "them", "their", "theirs", "she", "her", "hers",
+        "he", "him", "his", "its", "we", "our", "ours", "us",
+        "you", "your", "yours", "i", "me", "my", "mine",
+    }
+)
+
 # Stray boundary punctuation spaCy folds onto a span ('(exclamation',
 # '"government corruption', 'process i.'). Stripped before hygiene so a span
 # never carries characters that are not part of its own words.
@@ -66,6 +80,8 @@ def _hygiene_reason(text: str, kind: str, entity_label: str | None) -> str | Non
         return "numeric"
     if len(text) == 1 and (text.isalpha() or text.isdigit()):
         return "single_letter"
+    if text.lower() in _FUNCTION_WORDS:
+        return "function_word"
     if _HYPHEN_BRIDGE_PATTERN.search(text):
         return "hyphen_bridge"
     # spaCy routinely labels code/equation tokens as proper nouns (max, score,
