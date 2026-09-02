@@ -46,6 +46,19 @@ class TestGenerateClozeEntity:
 
 
 class TestGenerateClozeEntitySanity:
+    def test_formula_span_prefers_concept_phrase_over_noise_tokens(self):
+        result = generate_cloze(
+            make_analyzed(
+                "The max score is computed as max = -1 at the end.",
+                entities=[("max", "PERSON"), ("max = -1", "PERSON")],
+                nouns=["max", "score", "max", "=", "end"],
+                noun_phrases=["max score", "max", "=", "end"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "max score"
+        assert result.reason == "phrase"
+
     def test_rejects_entity_span_with_standalone_hyphen(self):
         result = generate_cloze(
             make_analyzed(

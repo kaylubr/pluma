@@ -77,6 +77,49 @@ class TestAnalyzeCandidates:
         span = next(c for c in result.candidates if c.text == "Algorithm - Given")
         assert span.rejected == "hyphen_bridge"
 
+    def test_en_and_em_dash_phrase_bridges_rejected(self):
+        for dash in ("\u2013", "\u2014"):
+            text = f"Methods include Prevention {dash} deadlocks and more."
+            result = make_analyzed(
+                text,
+                noun_phrases=[f"Prevention {dash} deadlocks"],
+                nouns=["Prevention", "deadlocks"],
+            )
+            span = next(c for c in result.candidates if dash in c.text)
+            assert span.rejected == "hyphen_bridge"
+
+    def test_symbol_token_candidate_rejected(self):
+        result = analyze_sentence("The max score is computed as max = -1 at the end.")
+        for candidate in result.candidates:
+            if candidate.text == "=":
+                assert candidate.rejected == "non_word_token"
+
+    def test_merged_formula_entity_rejected(self):
+        result = analyze_sentence("The max score is computed as max = -1 at the end.")
+        merged = next(c for c in result.candidates if c.text == "max = -1")
+        assert merged.rejected == "non_word_token"
+
+    def test_lowercase_single_token_entity_rejected(self):
+        result = analyze_sentence("The max score is computed as max = -1 at the end.")
+        max_entity = next(
+            c for c in result.candidates if c.text == "max" and c.kind == "entity"
+        )
+        assert max_entity.rejected == "lowercase_entity"
+
+    def test_negative_number_entity_rejected(self):
+        result = analyze_sentence("if score = max then return -1")
+        minus_one = next(c for c in result.candidates if c.text == "-1")
+        assert minus_one.rejected == "non_word_token"
+
+    def test_capitalized_entities_not_rejected_by_name_check(self):
+        result = make_analyzed(
+            "Marie Curie studied polonium.",
+            entities=[("Marie Curie", "PERSON")],
+            nouns=["polonium"],
+        )
+        marie = next(c for c in result.candidates if c.text == "Marie Curie")
+        assert marie.rejected is None
+
     def test_candidates_default_empty_for_empty_text(self):
         assert analyze_sentence("").candidates == []
         assert analyze_sentence("   ").candidates == []

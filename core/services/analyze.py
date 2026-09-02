@@ -38,8 +38,17 @@ _NUMERIC_LABELS = frozenset(
     {"DATE", "TIME", "CARDINAL", "ORDINAL", "QUANTITY", "PERCENT", "MONEY"}
 )
 
-_HYPHEN_BRIDGE_PATTERN = re.compile(r"\s-\s")
+# A dash surrounded by whitespace (hyphen, en dash, em dash) bridges two units;
+# spaCy folds either side into one span even when they are separate clauses or
+# list items (e.g. "Prevention – deadlocks").
+_HYPHEN_BRIDGE_PATTERN = re.compile(r"\s[-–—]\s")
 _MAX_SPAN_WORDS = 6
+
+
+def _has_non_word_token(text: str) -> bool:
+    return any(
+        not any(ch.isalpha() for ch in token) for token in text.split()
+    )
 
 
 def _hygiene_reason(text: str, kind: str, entity_label: str | None) -> str | None:
@@ -49,8 +58,17 @@ def _hygiene_reason(text: str, kind: str, entity_label: str | None) -> str | Non
         return "single_letter"
     if _HYPHEN_BRIDGE_PATTERN.search(text):
         return "hyphen_bridge"
+    # spaCy routinely labels code/equation tokens as proper nouns (max, score,
+    # -1). A span containing a whitespace-separated token with no alphabetic
+    # character is formula residue, not a word, whatever label NER invented.
+    if _has_non_word_token(text):
+        return "non_word_token"
     if len(text.split()) > _MAX_SPAN_WORDS:
         return "too_many_words"
+    # An entity with no uppercase letter at all is an unreliable NER tag over a
+    # lower-case common word (max, score), not a proper name.
+    if kind == "entity" and not any(ch.isupper() for ch in text):
+        return "lowercase_entity"
     return None
 
 
