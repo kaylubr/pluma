@@ -44,6 +44,16 @@ _NUMERIC_LABELS = frozenset(
 _HYPHEN_BRIDGE_PATTERN = re.compile(r"\s[-–—]\s")
 _MAX_SPAN_WORDS = 6
 
+# Stray boundary punctuation spaCy folds onto a span ('(exclamation',
+# '"government corruption', 'process i.'). Stripped before hygiene so a span
+# never carries characters that are not part of its own words.
+_LEAD_TRIM_PATTERN = re.compile(r'^["\'([]{1,}')
+_TAIL_TRIM_PATTERN = re.compile(r'["\')\]}.,]{1,}$')
+
+
+def _trim_span(text: str) -> str:
+    return _TAIL_TRIM_PATTERN.sub("", _LEAD_TRIM_PATTERN.sub("", text))
+
 
 def _has_non_word_token(text: str) -> bool:
     return any(
@@ -88,43 +98,52 @@ def _derive_candidates(
     noun_phrases: list[str],
     nouns: list[str],
 ) -> list[Candidate]:
-    candidates = [
-        Candidate(
-            text=text,
-            kind="entity",
-            entity_label=label,
-            identifier_like=_identifier_like(text),
-            rejected=_hygiene_reason(text, "entity", label),
+    candidates: list[Candidate] = []
+    for raw, label in entities:
+        text = _trim_span(raw)
+        if not text:
+            continue
+        candidates.append(
+            Candidate(
+                text=text,
+                kind="entity",
+                entity_label=label,
+                identifier_like=_identifier_like(text),
+                rejected=_hygiene_reason(text, "entity", label),
+            )
         )
-        for text, label in entities
-    ]
-    phrases = [
-        Candidate(
-            text=text,
-            kind="phrase",
-            entity_label=None,
-            identifier_like=_identifier_like(text),
-            rejected=_hygiene_reason(text, "phrase", None),
+    for raw in noun_phrases:
+        text = _trim_span(raw)
+        if not text:
+            continue
+        candidates.append(
+            Candidate(
+                text=text,
+                kind="phrase",
+                entity_label=None,
+                identifier_like=_identifier_like(text),
+                rejected=_hygiene_reason(text, "phrase", None),
+            )
         )
-        for text in noun_phrases
-    ]
-    candidates.extend(phrases)
     identifier_words: set[str] = set()
     for span in candidates:
         if span.identifier_like:
             identifier_words.update(span.text.split())
-    candidates.extend(
-        Candidate(
-            text=text,
-            kind="noun",
-            entity_label=None,
-            identifier_like=_identifier_like(text) or any(
-                word in identifier_words for word in text.split()
-            ),
-            rejected=_hygiene_reason(text, "noun", None),
+    for raw in nouns:
+        text = _trim_span(raw)
+        if not text:
+            continue
+        candidates.append(
+            Candidate(
+                text=text,
+                kind="noun",
+                entity_label=None,
+                identifier_like=_identifier_like(text) or any(
+                    word in identifier_words for word in text.split()
+                ),
+                rejected=_hygiene_reason(text, "noun", None),
+            )
         )
-        for text in nouns
-    )
     return candidates
 
 

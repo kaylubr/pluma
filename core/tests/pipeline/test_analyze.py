@@ -124,6 +124,25 @@ class TestAnalyzeCandidates:
         assert analyze_sentence("").candidates == []
         assert analyze_sentence("   ").candidates == []
 
+    def test_candidate_text_trims_leading_parenthesis(self):
+        result = analyze_sentence("Joy = +2 (thrilled) + 0.5 (exclamation) = +4.")
+        assert not any(c.text.startswith("(") for c in result.candidates)
+        assert any(c.text == "exclamation" for c in result.candidates)
+
+    def test_candidate_text_trims_leading_quote(self):
+        result = analyze_sentence(
+            'Extracted Aspects: "government corruption" (core issue)'
+        )
+        assert not any(c.text.startswith('"') for c in result.candidates)
+        assert any(c.text == "government corruption" for c in result.candidates)
+
+    def test_candidate_text_trims_trailing_period_after_abbrev_like_token(self):
+        result = analyze_sentence(
+            "cij \u2013 current number of resource j held by process i."
+        )
+        assert not any(c.text == "process i." for c in result.candidates)
+        assert any(c.text == "process i" for c in result.candidates)
+
 
 class TestAnalyzeSentence:
     def test_named_entity_extraction(self):

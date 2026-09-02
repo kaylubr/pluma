@@ -393,6 +393,18 @@ class TestGenerateCandidateClozes:
     def test_pool_empty_for_no_eligible_candidate(self):
         assert generate_candidate_clozes(make_analyzed("Yes")) == []
 
+    def test_trims_stray_punctuation_before_selecting(self):
+        result = generate_cloze(
+            make_analyzed(
+                "A score of (exclamation) equals joy.",
+                nouns=["score", "exclamation", "joy"],
+                noun_phrases=["(exclamation)"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "exclamation"
+        assert result.answer != "(exclamation)"
+
 
 class TestGenerateClozeNone:
     def test_all_candidates_duplicate_returns_none(self):
