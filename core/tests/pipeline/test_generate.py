@@ -154,8 +154,8 @@ class TestGenerateClozeNoun:
             )
         )
         assert result is not None
-        assert result.text == "_____ is produced by mitochondria"
-        assert result.answer == "ATP"
+        assert result.text == "ATP is produced by _____"
+        assert result.answer == "mitochondria"
         assert result.reason == "noun"
 
     def test_blanks_mid_sentence_noun(self):
@@ -229,6 +229,65 @@ class TestGenerateClozePhraseTier:
         assert result is not None
         assert result.answer == "access"
         assert result.reason == "noun"
+
+
+class TestGenerateClozeRarityPreference:
+    def test_prefers_specific_noun_over_common(self):
+        result = generate_cloze(
+            make_analyzed("A process waits on a mutex.", nouns=["process", "mutex"])
+        )
+        assert result is not None
+        assert result.answer == "mutex"
+        assert result.reason == "noun"
+
+    def test_reverse_supply_order_still_prefers_specific(self):
+        result = generate_cloze(
+            make_analyzed("A process waits on a mutex.", nouns=["mutex", "process"])
+        )
+        assert result is not None
+        assert result.answer == "mutex"
+        assert result.reason == "noun"
+
+    def test_common_word_only_still_selected(self):
+        result = generate_cloze(make_analyzed("A process runs.", nouns=["process"]))
+        assert result is not None
+        assert result.answer == "process"
+        assert result.reason == "noun"
+
+    def test_phrase_with_rarer_key_word_preferred(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Deadlock avoidance and process scheduling are two approaches.",
+                nouns=[],
+                noun_phrases=["Deadlock avoidance", "process scheduling"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "Deadlock avoidance"
+        assert result.reason == "phrase"
+
+    def test_unscored_word_preferred_as_rare(self):
+        result = generate_cloze(
+            make_analyzed(
+                "The process consumes the synaptosome.",
+                nouns=["process", "synaptosome"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "synaptosome"
+        assert result.reason == "noun"
+
+    def test_entity_precedence_unaffected(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Marie Curie studied polonium.",
+                entities=[("Marie Curie", "PERSON")],
+                nouns=["polonium"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "Marie Curie"
+        assert result.reason == "entity"
 
 
 class TestGenerateClozeNone:

@@ -61,6 +61,7 @@ dependencies = [
     "uvloop==0.22.1",
     "watchfiles==1.2.0",
     "websockets==17.0.1",
+    "wordfreq>=3.1.1",
 ]
 
 [tool.uv.sources]

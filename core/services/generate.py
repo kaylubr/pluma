@@ -1,6 +1,8 @@
 import re
 from dataclasses import dataclass
 
+from wordfreq import zipf_frequency
+
 from core.services.analyze import AnalyzedSentence
 
 
@@ -39,15 +41,30 @@ def _is_incoherent_entity_span(term: str) -> bool:
     return False
 
 
+def _term_rarity(term: str) -> float:
+    """Rarity score for a candidate: lower is rarer. A phrase's score is the
+    rarity of its rarest word, so "mutual exclusion" is not penalized for the
+    common "mutual". Words absent from the frequency reference score 0.0 and
+    are treated as maximally rare."""
+    return min(zipf_frequency(word.lower(), "en") for word in term.split())
+
+
 def _pick_candidate(analyzed: AnalyzedSentence) -> tuple[str, str] | None:
-    candidates = [
+    entity_candidates = [
         (term, "entity")
         for term, label in analyzed.entities
         if label not in _NUMERIC_LABELS
         and not _is_incoherent_entity_span(term)
-    ] + [
-        (term, "phrase") for term in analyzed.noun_phrases
-    ] + [(term, "noun") for term in analyzed.nouns]
+    ]
+    phrase_candidates = sorted(
+        ((term, "phrase") for term in analyzed.noun_phrases),
+        key=lambda candidate: _term_rarity(candidate[0]),
+    )
+    noun_candidates = sorted(
+        ((term, "noun") for term in analyzed.nouns),
+        key=lambda candidate: _term_rarity(candidate[0]),
+    )
+    candidates = entity_candidates + phrase_candidates + noun_candidates
     for term, reason in candidates:
         if _occurs_exactly_once(analyzed.text, term):
             return term, reason

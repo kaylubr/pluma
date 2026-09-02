@@ -32,7 +32,7 @@ REGRESSION_CLOZES = [
     ),
     (
         _a("ATP is produced by mitochondria", nouns=["ATP", "mitochondria"]),
-        "ATP",
+        "mitochondria",
     ),
     (
         _a("Both organelles have their own DNA", nouns=["organelles", "DNA"]),
@@ -61,5 +61,9 @@ REGRESSION_CLOZES = [
             noun_phrases=["Lexicon-based methods"],
         ),
         "Lexicon-based methods",
+    ),
+    (
+        _a("A process waits on a mutex.", nouns=["process", "mutex"]),
+        "mutex",
     ),
 ]
