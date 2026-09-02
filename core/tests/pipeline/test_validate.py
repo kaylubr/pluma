@@ -76,6 +76,43 @@ class TestValidateQuestionReject:
         assert "answer_leakage" in result.reasons
 
 
+class TestValidateQuestionRejectFragment:
+    def test_reject_answer_that_is_not_a_full_candidate_span(self):
+        sentence = "The common method is to use a lexicon."
+        result = validate_question(
+            make_analyzed(
+                sentence,
+                nouns=["method", "lexicon"],
+                noun_phrases=["common method"],
+            ),
+            make_cloze(sentence, "The _____ method is to use a lexicon.", "common"),
+        )
+        assert result.is_valid is False
+        assert "fragment_answer" in result.reasons
+
+    def test_full_phrase_span_still_passes(self):
+        sentence = "The common method is to use a lexicon."
+        result = validate_question(
+            make_analyzed(
+                sentence,
+                nouns=["method", "lexicon"],
+                noun_phrases=["common method"],
+            ),
+            make_cloze(sentence, "The _____ is to use a lexicon.", "common method"),
+        )
+        assert result.is_valid is True
+        assert result.reasons == []
+
+    def test_fragment_check_skipped_when_no_candidates_known(self):
+        sentence = "Cells are the basic unit of life."
+        result = validate_question(
+            make_analyzed(sentence),
+            make_cloze(sentence, "_____ are the basic unit of life.", "Cells"),
+        )
+        assert result.is_valid is True
+        assert result.reasons == []
+
+
 class TestValidateQuestions:
     def test_batch_preserves_order_and_handles_none(self):
         analyzed_list = [

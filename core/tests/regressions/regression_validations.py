@@ -40,4 +40,24 @@ REGRESSION_VALIDATIONS = [
         _c("DNA contains DNA.", "_____ contains DNA.", "DNA"),
         False,
     ),
+    # Valid: answer blanks a full candidate phrase span
+    (
+        _a(
+            "The common method is to use a lexicon.",
+            nouns=["method", "lexicon"],
+            noun_phrases=["common method"],
+        ),
+        _c("The common method is to use a lexicon.", "The _____ is to use a lexicon.", "common method"),
+        True,
+    ),
+    # Invalid: answer is a fragment of a candidate span, not the span itself
+    (
+        _a(
+            "The common method is to use a lexicon.",
+            nouns=["method", "lexicon"],
+            noun_phrases=["common method"],
+        ),
+        _c("The common method is to use a lexicon.", "The _____ method is to use a lexicon.", "common"),
+        False,
+    ),
 ]

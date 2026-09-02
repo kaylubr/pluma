@@ -41,6 +41,13 @@ def validate_question(analyzed: AnalyzedSentence, cloze: GeneratedCloze) -> Vali
     if _count_occurrences(cloze.text, cloze.answer) > 0:
         reasons.append("answer_leakage")
 
+    # The answer must blank a whole candidate span, not a residue of one (e.g.
+    # the adjective "common" out of "common method"). Skipped when Analyze
+    # produced no candidate knowledge for the sentence.
+    spans = [candidate for candidate in analyzed.candidates if candidate.rejected is None]
+    if spans and not any(candidate.text == cloze.answer for candidate in spans):
+        reasons.append("fragment_answer")
+
     return ValidationResult(is_valid=not reasons, reasons=reasons)
 
 
