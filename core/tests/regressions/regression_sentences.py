@@ -16,6 +16,10 @@ REGRESSION_SENTENCES = [
     ("Step 1: Tokenize the Text", False),
     ("s: +0.9 \u2192 2.5 + 0.9 = 3.4", False),
 
+    # Reject: truncated list lead-in and example-value enumeration
+    ("A common method is to:", False),
+    ("Negative words: skinny (-1), bad (-1), hate (-1)", False),
+
     # Keep: factual claims from real lesson fixtures
     ("Cells are the basic unit of life", True),
     ("Mitochondria produce ATP", True),

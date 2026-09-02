@@ -77,7 +77,7 @@ class TestScoreSentence:
         analyzed = analyze_sentence("Key organelles:")
         result = score_sentence(analyzed)
         assert result.worth_question is False
-        assert result.reason == "no_verb"
+        assert result.reason == "lead_in"
         
     def test_reject_boilerplate_with_colon(self):
         analyzed = analyze_sentence("Overview: this unit covers cell structure.")
@@ -130,6 +130,28 @@ class TestScoreNonProseFragments:
 
     def test_keep_step_as_ordinary_vocabulary(self):
         analyzed = analyze_sentence("The next step in mitosis is anaphase.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+
+    def test_reject_lead_in_ending_in_colon(self):
+        analyzed = analyze_sentence("A common method is to:")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "lead_in"
+
+    def test_reject_parenthesized_value_list(self):
+        analyzed = analyze_sentence("Negative words: skinny (-1), bad (-1), hate (-1)")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "example_list"
+
+    def test_keep_sentence_with_lone_parenthetical(self):
+        analyzed = analyze_sentence("Ribosomes synthesize proteins in the cytoplasm.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+
+    def test_keep_plain_propositional_sentence_with_digits(self):
+        analyzed = analyze_sentence("The cell cycle has two main phases.")
         result = score_sentence(analyzed)
         assert result.worth_question is True
 

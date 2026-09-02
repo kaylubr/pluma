@@ -19,6 +19,13 @@ _FLOW_NOTATION_PATTERN = re.compile(r"(?:\u2192|\u2190|\u21d2|->|=>)")
 
 _ALPHA_RATIO_THRESHOLD = 0.5
 
+# A comma-separated item immediately followed by a signed parenthetical number,
+# e.g. "bad (-1)" in "skinny (-1), bad (-1), hate (-1)". Marks an example-value
+# enumeration, not a claim.
+_EXAMPLE_LIST_PATTERN = re.compile(
+    r",\s*[A-Za-z][^,()]*\(\s*[+-]?\s*\d+(?:\.\d+)?\s*\)"
+)
+
 _WH_WORDS = frozenset(
     {"what", "which", "who", "whom", "whose", "why", "how", "where", "when"}
 )
@@ -94,6 +101,12 @@ def score_sentence(analyzed: AnalyzedSentence) -> ScoredSentence:
 
     if _is_symbol_heavy(text):
         return ScoredSentence(text=text, worth_question=False, reason="symbol_heavy")
+
+    if text.rstrip().endswith(":"):
+        return ScoredSentence(text=text, worth_question=False, reason="lead_in")
+
+    if _EXAMPLE_LIST_PATTERN.search(text):
+        return ScoredSentence(text=text, worth_question=False, reason="example_list")
 
     if _is_interrogative(analyzed):
         return ScoredSentence(text=text, worth_question=False, reason="interrogative")
