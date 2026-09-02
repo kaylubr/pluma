@@ -86,6 +86,54 @@ class TestScoreSentence:
         assert result.reason == "boilerplate"
 
 
+class TestScoreNonProseFragments:
+    def test_reject_step_label(self):
+        analyzed = analyze_sentence("Step 1: Tokenize the Text")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "step_label"
+
+    def test_reject_phase_label_generalizes_beyond_step(self):
+        analyzed = analyze_sentence("Phase 2: Normalize the corpus")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "step_label"
+
+    def test_reject_unicode_arrow_notation(self):
+        analyzed = analyze_sentence("s: +0.9 \u2192 2.5 + 0.9 = 3.4")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "notation"
+
+    def test_reject_ascii_arrow_notation(self):
+        analyzed = analyze_sentence("P1 -> P2 waiting")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "notation"
+
+    def test_reject_symbol_heavy_expression(self):
+        analyzed = analyze_sentence("2 + 2 = 4")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "symbol_heavy"
+
+    def test_keep_sentence_containing_numbers(self):
+        analyzed = analyze_sentence("Cells divide into two daughter cells during mitosis.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+
+    def test_keep_boilerplate_colon_unaffected_by_new_rules(self):
+        analyzed = analyze_sentence("Overview: this unit covers cell structure.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "boilerplate"
+
+    def test_keep_step_as_ordinary_vocabulary(self):
+        analyzed = analyze_sentence("The next step in mitosis is anaphase.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+
+
 class TestScoreSentences:
     def test_batch_matches_input_order(self):
         analyzed = [analyze_sentence(s) for s, _ in REGRESSION_SENTENCES]

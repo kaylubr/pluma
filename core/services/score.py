@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 
 from core.services.analyze import AnalyzedSentence
@@ -11,6 +12,12 @@ class ScoredSentence:
 
 
 MIN_WORDS = 2
+
+_STEP_LABEL_PATTERN = re.compile(r"^(?:step|phase|part)\s+\d+\b", re.IGNORECASE)
+
+_FLOW_NOTATION_PATTERN = re.compile(r"(?:\u2192|\u2190|\u21d2|->|=>)")
+
+_ALPHA_RATIO_THRESHOLD = 0.5
 
 _WH_WORDS = frozenset(
     {"what", "which", "who", "whom", "whose", "why", "how", "where", "when"}
@@ -62,6 +69,14 @@ def _is_interrogative(analyzed: AnalyzedSentence) -> bool:
     return False
 
 
+def _is_symbol_heavy(text: str) -> bool:
+    non_space = [ch for ch in text if not ch.isspace()]
+    if not non_space:
+        return False
+    alpha = sum(ch.isalpha() for ch in non_space)
+    return alpha / len(non_space) < _ALPHA_RATIO_THRESHOLD
+
+
 def score_sentence(analyzed: AnalyzedSentence) -> ScoredSentence:
     text = analyzed.text
     if not text or not text.strip():
@@ -70,6 +85,15 @@ def score_sentence(analyzed: AnalyzedSentence) -> ScoredSentence:
     words = text.strip().split()
     if len(words) < MIN_WORDS:
         return ScoredSentence(text=text, worth_question=False, reason="too_short")
+
+    if _STEP_LABEL_PATTERN.match(text.strip()):
+        return ScoredSentence(text=text, worth_question=False, reason="step_label")
+
+    if _FLOW_NOTATION_PATTERN.search(text):
+        return ScoredSentence(text=text, worth_question=False, reason="notation")
+
+    if _is_symbol_heavy(text):
+        return ScoredSentence(text=text, worth_question=False, reason="symbol_heavy")
 
     if _is_interrogative(analyzed):
         return ScoredSentence(text=text, worth_question=False, reason="interrogative")

@@ -12,6 +12,10 @@ REGRESSION_SENTENCES = [
     ("The powerhouse of the cell", False),
     ("Why do cells divide?", False),
 
+    # Reject: non-prose fragments from the smoke-test review
+    ("Step 1: Tokenize the Text", False),
+    ("s: +0.9 \u2192 2.5 + 0.9 = 3.4", False),
+
     # Keep: factual claims from real lesson fixtures
     ("Cells are the basic unit of life", True),
     ("Mitochondria produce ATP", True),
