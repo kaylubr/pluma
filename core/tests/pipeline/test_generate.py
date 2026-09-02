@@ -376,6 +376,20 @@ class TestGenerateCandidateClozes:
         assert all(c.answer != "Process P" for c in pool)
         assert pool[0].answer == "mutex"
 
+    def test_pool_collapses_duplicate_spans_across_kinds(self):
+        pool = generate_candidate_clozes(
+            make_analyzed(
+                "TextBlob returns a polarity score.",
+                entities=[("TextBlob", "PRODUCT")],
+                nouns=["TextBlob", "polarity", "score"],
+                noun_phrases=["TextBlob", "polarity score"],
+            )
+        )
+        textblob_cards = [c for c in pool if c.answer == "TextBlob"]
+        assert len(textblob_cards) == 1
+        assert textblob_cards[0].reason == "entity"
+        assert len({(c.text, c.answer) for c in pool}) == len(pool)
+
     def test_pool_empty_for_no_eligible_candidate(self):
         assert generate_candidate_clozes(make_analyzed("Yes")) == []
 

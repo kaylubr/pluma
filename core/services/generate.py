@@ -49,16 +49,23 @@ def _eligible(candidate: Candidate) -> bool:
 def generate_candidate_clozes(analyzed: AnalyzedSentence) -> list[GeneratedCloze]:
     """Rank every eligible candidate into a cloze. Each candidate is kept only
     if it blanks a span that occurs exactly once, so the returned list is the
-    set of reconstructable clozes in preference order."""
+    set of reconstructable clozes in preference order. The same span often
+    surfaces as an entity, a phrase, and a noun; only the highest-ranked cloze
+    for a given (frame, answer) is kept."""
     candidates = sorted(
         (candidate for candidate in analyzed.candidates if _eligible(candidate)),
         key=_candidate_key,
     )
     result: list[GeneratedCloze] = []
+    seen: set[tuple[str, str]] = set()
     for candidate in candidates:
         if not _occurs_exactly_once(analyzed.text, candidate.text):
             continue
         blanked = _pattern(candidate.text).sub(_BLANK, analyzed.text, count=1)
+        key = (blanked, candidate.text)
+        if key in seen:
+            continue
+        seen.add(key)
         result.append(
             GeneratedCloze(
                 sentence=analyzed.text,
