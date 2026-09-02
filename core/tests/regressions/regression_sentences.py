@@ -30,6 +30,9 @@ REGRESSION_SENTENCES = [
     ("if only one instance per resource type, then deadlock", False),
     ("Joy = +2 (thrilled) + 1.5 (amazing) + 0.5 (exclamation) = +4.", False),
 
+    # Reject: first-token imperative that the parser misreads
+    ("Count occurrences or use probability scores.", False),
+
     # Keep: factual claims from real lesson fixtures
     ("Cells are the basic unit of life", True),
     ("Mitochondria produce ATP", True),

@@ -93,6 +93,10 @@ _IMPERATIVE_VERBS = frozenset(
         "review", "distinguish", "evaluate", "examine", "show", "illustrate",
         "consider", "note", "remember", "recall", "answer", "solve",
         "compute", "calculate",
+        # Corpus procedural verbs seen as subject-less bullet heads.
+        "use", "count", "ignore", "tokenize", "detect", "extract", "negate",
+        "grant", "refuse", "release", "acquire", "preempt", "impose",
+        "aggregate", "filter",
     }
 )
 
@@ -104,6 +108,26 @@ _BOILERPLATE_OPENS = frozenset(
         "discussion", "quiz", "contents", "welcome", "end",
     }
 )
+
+
+def _is_imperative(first_raw: str, root_verb: str | None, subject_text: str | None) -> bool:
+    """Directive bullets are caught on the sentence's literal first token, not
+    on root_verb, which the parser frequently gets wrong on short unpunctuated
+    bullets. A real subject that extends beyond the bare first token marks
+    nominal use of the word ("List processing is ...", "Use of a mutex
+    requires ..."), so those are not imperatives."""
+    first_lower = first_raw.lower()
+    root_lower = root_verb.lower() if root_verb else None
+    if first_lower not in _IMPERATIVE_VERBS and (
+        root_lower is None or root_lower not in _IMPERATIVE_VERBS
+    ):
+        return False
+    if subject_text is not None and subject_text.lower() != first_lower:
+        if root_lower is None or root_lower not in _IMPERATIVE_VERBS:
+            return False
+        if root_lower != first_lower:
+            return False
+    return True
 
 
 def _is_interrogative(analyzed: AnalyzedSentence) -> bool:
@@ -162,7 +186,7 @@ def score_sentence(analyzed: AnalyzedSentence) -> ScoredSentence:
     if _is_interrogative(analyzed):
         return ScoredSentence(text=text, worth_question=False, reason="interrogative")
 
-    if analyzed.root_verb and analyzed.root_verb.lower() in _IMPERATIVE_VERBS:
+    if _is_imperative(words[0].strip(":,.;"), analyzed.root_verb, analyzed.subject_text):
         return ScoredSentence(text=text, worth_question=False, reason="imperative")
 
     if words[0].lower().strip(":,.;") in _BOILERPLATE_OPENS:

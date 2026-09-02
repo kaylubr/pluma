@@ -159,7 +159,7 @@ class TestScoreNonProseFragments:
         analyzed = analyze_sentence('Ignore neutral words like "girl" or "she."')
         result = score_sentence(analyzed)
         assert result.worth_question is False
-        assert result.reason == "no_claim"
+        assert result.reason == "imperative"
 
     def test_reject_entity_heading_without_subject(self):
         analyzed = analyze_sentence("Strategies for dealing with Deadlocks")
@@ -219,6 +219,24 @@ class TestScoreNonProseFragments:
         result = score_sentence(analyzed)
         assert result.worth_question is False
         assert result.reason == "worked_example"
+
+    def test_reject_first_token_imperative_on_misparse(self):
+        analyzed = analyze_sentence("Count occurrences or use probability scores.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is False
+        assert result.reason == "imperative"
+
+    def test_keep_nominal_use_of_claim(self):
+        analyzed = analyze_sentence(
+            "Use of a shared variable requires synchronization."
+        )
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
+
+    def test_keep_list_processing_claim(self):
+        analyzed = analyze_sentence("List processing is a common technique.")
+        result = score_sentence(analyzed)
+        assert result.worth_question is True
 
 
 class TestScoreSentences:
