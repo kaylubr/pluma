@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from core.services import store
 from core.services.analyze import analyze_sentence
 from core.services.clean import clean_markdown
-from core.services.dedupe import dedupe_questions
 from core.services.extractors import extract_text
-from core.services.generate import generate_cloze
+from core.services.generate import generate_candidate_clozes
 from core.services.score import score_sentence
+from core.services.selection import select_document_questions
 from core.services.split import split_sentences
 from core.services.validate import validate_question
 
@@ -35,12 +35,13 @@ def process_document(session: Session, filename: str, contents: bytes) -> int:
         session, document_id, [scored for _, scored in kept]
     )
 
-    items = []
+    pools = []
     for sentence_id, (analyzed, _) in zip(sentence_ids, kept):
-        cloze = generate_cloze(analyzed)
-        if cloze is None:
+        clozes = generate_candidate_clozes(analyzed)
+        if not clozes:
             continue
-        items.append((sentence_id, cloze, validate_question(analyzed, cloze)))
-    store.store_questions(session, dedupe_questions(items))
+        validated = [(cloze, validate_question(analyzed, cloze)) for cloze in clozes]
+        pools.append((sentence_id, validated))
+    store.store_questions(session, select_document_questions(pools))
 
     return document_id

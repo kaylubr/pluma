@@ -11,11 +11,11 @@ Everything runs locally. Question generation is rule-based: there are no LLM API
 ### Features
 
 - Accepts text-based PDF and PPTX files.
-- Runs a deterministic pipeline: extract, clean, split, analyze, score, generate, validate, dedupe, store, serve.
+- Runs a deterministic pipeline: extract, clean, split, analyze, score, generate, validate, select, store, serve.
 - Produces cloze questions with word-for-word traceable answers.
 - Picks the most specific blankable concept: candidates are ranked by kind and rarity, and diagram labels (e.g. `Process A`, `R1`) or concept fragments are never blanked.
 - Validates each question structurally (word length, ambiguous blanks, answer leakage, bare-pronoun subjects, fragment answers) before serving it.
-- Removes near-duplicate cards within a deck while still allowing the same answer to appear in genuinely different questions.
+- Removes repeated content from a deck: exact and near-duplicate cards are declined, and the same answer-concept may be chosen only a few times per deck — later occurrences fall back to the sentence's next-best candidate.
 - Persists everything to a local SQLite database with versioned migrations.
 - Exposes a small HTTP API for creating reviewers, listing them, fetching questions, and discarding bad ones manually.
 
@@ -36,7 +36,7 @@ The pipeline stages are isolated services in the backend:
 5. **Score** — decides which sentences are worth turning into a question and rejects fragments, labels, equations, and boilerplate before Generate ever sees them.
 6. **Generate** — ranks the candidate spans of each kept sentence by kind and rarity (using an offline word-frequency table as a genericness signal) and blanks the best one. If a sentence's only candidates are generic or diagram labels, no question is produced — an omitted card beats a weak one.
 7. **Validate** — rejects questions that are structurally unsound: too short or too long, ambiguous or leaking answers, a bare-pronoun subject, or an answer that fragments a larger concept span.
-8. **Dedupe** — compares each card's surface against earlier cards in the same document and hides near-duplicates, so duplicated slide content does not appear twice while the same answer in different questions is kept.
+8. **Select** — chooses at most one winner per sentence from the ranked candidate pool: exact and near-duplicate cards are declined, and an answer-concept already used a few times in the deck falls back to the sentence's next-best candidate, so one repeated concept cannot crowd the deck.
 9. **Store** — persists the kept sentences and every generated question with its validation result and duplicate status.
 10. **Serve** — the API returns the valid, non-discarded questions as a flashcard deck.
 

@@ -97,7 +97,7 @@ class TestProcessDocument:
         assert session.query(Sentence).count() == 0
         assert session.query(Question).count() == 0
 
-    def test_duplicate_answers_deduped_in_document(self, session, monkeypatch):
+    def test_duplicate_content_selected_once(self, session, monkeypatch):
         monkeypatch.setattr(
             "core.services.orchestrate.extract_text",
             lambda filename, contents: DUPLICATED_CONTENT,
@@ -112,9 +112,7 @@ class TestProcessDocument:
             .filter(Sentence.document_id == doc_id)
             .all()
         )
-        answers = [q.answer for q in questions]
-        assert answers == ["scheduling algorithm", "scheduling algorithm"]
-        assert sum(1 for q in questions if q.discarded) == 1
+        assert len(questions) == 1
         active = [q for q in questions if q.is_valid and not q.discarded]
         assert len(active) == 1
         assert active[0].answer == "scheduling algorithm"
