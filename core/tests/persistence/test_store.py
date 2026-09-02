@@ -238,6 +238,15 @@ class TestDiscardedDefault:
         session.commit()
         assert session.get(Question, q_id).discarded is False
 
+    def test_store_question_accepts_initial_discarded_true(self, session):
+        doc_id = store_document(session, "lesson.pdf")
+        sent_id = _stored_sentence(session, doc_id)
+        q_id = store_question(
+            session, sent_id, _cloze(), make_validation(True), discarded=True
+        )
+        session.commit()
+        assert session.get(Question, q_id).discarded is True
+
 
 class TestTransactions:
     def test_ids_available_after_flush_before_commit(self, session):

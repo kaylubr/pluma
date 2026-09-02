@@ -10,6 +10,11 @@ from core.tests.helper import TINY_PDF
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
+DUPLICATED_CONTENT = (
+    "Waiting for P2 to release R1, the scheduling algorithm decides next.\n"
+    "Waiting for P2 to release R1, the scheduling algorithm decides next."
+)
+
 
 @pytest.fixture
 def session():
@@ -91,3 +96,25 @@ class TestProcessDocument:
         assert session.query(Document).count() == 0
         assert session.query(Sentence).count() == 0
         assert session.query(Question).count() == 0
+
+    def test_duplicate_answers_deduped_in_document(self, session, monkeypatch):
+        monkeypatch.setattr(
+            "core.services.orchestrate.extract_text",
+            lambda filename, contents: DUPLICATED_CONTENT,
+        )
+        doc_id = process_document(session, "lesson.pdf", b"ignored")
+        session.commit()
+        sentences = session.query(Sentence).filter_by(document_id=doc_id).all()
+        assert len(sentences) == 2
+        questions = (
+            session.query(Question)
+            .join(Sentence, Question.sentence_id == Sentence.id)
+            .filter(Sentence.document_id == doc_id)
+            .all()
+        )
+        answers = [q.answer for q in questions]
+        assert answers == ["P2", "P2"]
+        assert sum(1 for q in questions if q.discarded) == 1
+        active = [q for q in questions if q.is_valid and not q.discarded]
+        assert len(active) == 1
+        assert active[0].answer == "P2"

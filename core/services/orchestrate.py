@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from core.services import store
 from core.services.analyze import analyze_sentence
 from core.services.clean import clean_markdown
+from core.services.dedupe import dedupe_questions
 from core.services.extractors import extract_text
 from core.services.generate import generate_cloze
 from core.services.score import score_sentence
@@ -40,6 +41,6 @@ def process_document(session: Session, filename: str, contents: bytes) -> int:
         if cloze is None:
             continue
         items.append((sentence_id, cloze, validate_question(analyzed, cloze)))
-    store.store_questions(session, items)
+    store.store_questions(session, dedupe_questions(items))
 
     return document_id

@@ -39,7 +39,11 @@ def store_sentences(
 
 
 def store_question(
-    session: Session, sentence_id: int, cloze: GeneratedCloze, validation: ValidationResult
+    session: Session,
+    sentence_id: int,
+    cloze: GeneratedCloze,
+    validation: ValidationResult,
+    discarded: bool = False,
 ) -> int:
     question = Question(
         sentence_id=sentence_id,
@@ -48,6 +52,7 @@ def store_question(
         reason=cloze.reason,
         is_valid=validation.is_valid,
         validation_reasons=",".join(validation.reasons),
+        discarded=discarded,
     )
     session.add(question)
     session.flush()
@@ -56,9 +61,22 @@ def store_question(
 
 def store_questions(
     session: Session,
-    items: list[tuple[int, GeneratedCloze, ValidationResult]],
+    items: list[
+        tuple[int, GeneratedCloze, ValidationResult]
+        | tuple[int, GeneratedCloze, ValidationResult, bool]
+    ],
 ) -> list[int]:
-    return [store_question(session, sentence_id, cloze, validation) for sentence_id, cloze, validation in items]
+    ids = []
+    for item in items:
+        if len(item) == 4:
+            sentence_id, cloze, validation, discarded = item
+            ids.append(
+                store_question(session, sentence_id, cloze, validation, discarded=discarded)
+            )
+        else:
+            sentence_id, cloze, validation = item
+            ids.append(store_question(session, sentence_id, cloze, validation))
+    return ids
 
 
 def get_document(session: Session, document_id: int) -> Document | None:
