@@ -11,6 +11,20 @@ class AnalyzedSentence:
     root_verb: str | None
     subject_text: str | None
     subject_is_pronoun: bool
+    noun_phrases: list[str]
+
+
+def _noun_phrases(doc) -> list[str]:
+    root_index = next(token.i for token in doc if token.head == token)
+    phrases = []
+    for chunk in doc.noun_chunks:
+        if root_index in range(chunk.start, chunk.end):
+            continue
+        start = chunk.start + (1 if chunk[0].dep_ == "det" else 0)
+        if start >= chunk.end:
+            continue
+        phrases.append(doc[start : chunk.end].text)
+    return phrases
 
 
 def analyze_sentence(text: str) -> AnalyzedSentence:
@@ -22,6 +36,7 @@ def analyze_sentence(text: str) -> AnalyzedSentence:
             root_verb=None,
             subject_text=None,
             subject_is_pronoun=False,
+            noun_phrases=[],
         )
 
     nlp = get_analyzer()
@@ -30,6 +45,8 @@ def analyze_sentence(text: str) -> AnalyzedSentence:
     entities: list[tuple[str, str]] = [(ent.text, ent.label_) for ent in doc.ents]
 
     nouns: list[str] = [token.text for token in doc if token.pos_ in ("NOUN", "PROPN")]
+
+    noun_phrases = _noun_phrases(doc)
 
     root_verb: str | None = None
     root_token: Token | None = None
@@ -73,4 +90,5 @@ def analyze_sentence(text: str) -> AnalyzedSentence:
         root_verb=root_verb,
         subject_text=subject_text,
         subject_is_pronoun=subject_is_pronoun,
+        noun_phrases=noun_phrases,
     )

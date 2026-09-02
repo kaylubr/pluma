@@ -183,6 +183,54 @@ class TestGenerateClozeNoun:
         assert result.reason == "noun"
 
 
+class TestGenerateClozePhraseTier:
+    def test_prefers_phrase_over_component_nouns(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Lexicon-based methods analyze sentiment in product reviews.",
+                nouns=["methods", "sentiment", "product", "reviews"],
+                noun_phrases=["Lexicon-based methods"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "Lexicon-based methods"
+        assert result.reason == "phrase"
+        assert result.text == "_____ analyze sentiment in product reviews."
+
+    def test_no_phrases_behavior_unchanged(self):
+        result = generate_cloze(
+            make_analyzed("Ribosomes synthesize proteins.", nouns=["proteins"])
+        )
+        assert result is not None
+        assert result.answer == "proteins"
+        assert result.reason == "noun"
+
+    def test_entity_still_precedes_phrase(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Marie Curie studied radiation in the lab.",
+                entities=[("Marie Curie", "PERSON")],
+                nouns=["radiation", "lab"],
+                noun_phrases=["the lab"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "Marie Curie"
+        assert result.reason == "entity"
+
+    def test_duplicate_phrase_skipped_and_falls_through(self):
+        result = generate_cloze(
+            make_analyzed(
+                "Waiting for the resource allocator, the resource allocator grants access.",
+                nouns=["resource", "allocator", "access"],
+                noun_phrases=["resource allocator"],
+            )
+        )
+        assert result is not None
+        assert result.answer == "access"
+        assert result.reason == "noun"
+
+
 class TestGenerateClozeNone:
     def test_all_candidates_duplicate_returns_none(self):
         result = generate_cloze(

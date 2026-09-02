@@ -45,6 +45,8 @@ def _pick_candidate(analyzed: AnalyzedSentence) -> tuple[str, str] | None:
         for term, label in analyzed.entities
         if label not in _NUMERIC_LABELS
         and not _is_incoherent_entity_span(term)
+    ] + [
+        (term, "phrase") for term in analyzed.noun_phrases
     ] + [(term, "noun") for term in analyzed.nouns]
     for term, reason in candidates:
         if _occurs_exactly_once(analyzed.text, term):

@@ -54,4 +54,12 @@ REGRESSION_CLOZES = [
         ),
         "Algorithm",
     ),
+    (
+        _a(
+            "Lexicon-based methods analyze sentiment in product reviews.",
+            nouns=["methods", "sentiment", "product", "reviews"],
+            noun_phrases=["Lexicon-based methods"],
+        ),
+        "Lexicon-based methods",
+    ),
 ]

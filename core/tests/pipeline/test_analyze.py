@@ -1,6 +1,28 @@
 from core.services.analyze import AnalyzedSentence, analyze_sentence
 
 
+class TestAnalyzeNounPhrases:
+    def test_extracts_full_multi_word_phrase(self):
+        result = analyze_sentence("Lexicon-based methods analyze sentiment.")
+        assert "Lexicon-based methods" in result.noun_phrases
+
+    def test_strips_leading_determiner_from_phrase(self):
+        result = analyze_sentence("The mitochondria produce energy.")
+        assert "mitochondria" in result.noun_phrases
+
+    def test_no_meaningful_phrase_keeps_single_nouns(self):
+        result = analyze_sentence("Ribosomes synthesize proteins.")
+        assert any(n.lower() == "proteins" for n in result.nouns)
+
+    def test_empty_input_returns_empty_phrases(self):
+        result = analyze_sentence("")
+        assert isinstance(result, AnalyzedSentence)
+        assert result.noun_phrases == []
+
+        result2 = analyze_sentence("   ")
+        assert result2.noun_phrases == []
+
+
 class TestAnalyzeSentence:
     def test_named_entity_extraction(self):
         result = analyze_sentence("Marie Curie discovered polonium in 1898.")
